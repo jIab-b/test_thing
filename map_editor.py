@@ -36,18 +36,17 @@ def main():
     parser.add_argument("--grid", "-g", default="120x68")
     parser.add_argument("--tile", "-t", type=int, default=32)
     parser.add_argument("--file", "-f", default="")
-    parser.add_argument("--id", "-i", default="1283")
+    parser.add_argument("--map", "-m", default="1283", help="Map name or ID (e.g., 1283, loads/saves to saved_maps/map_1283.json)")
     args = parser.parse_args()
 
     gw, gh = parse_grid(args.grid)
     tile = max(8, int(args.tile))
     saved_dir = os.path.join("saved_maps")
     os.makedirs(saved_dir, exist_ok=True)
-    map_id = str(args.id)
-    if not map_id.isdigit():
-        map_id = "1283"
-    map_id = map_id[-4:].zfill(4)
-    dst_file = args.file if args.file else os.path.join(saved_dir, f"map_{map_id}.json")
+    map_name = str(args.map)
+    if map_name.isdigit():
+        map_name = map_name[-4:].zfill(4)
+    dst_file = args.file if args.file else os.path.join(saved_dir, f"map_{map_name}.json")
 
     data = load_json(dst_file)
     if data:

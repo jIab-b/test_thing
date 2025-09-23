@@ -1,10 +1,11 @@
 extends CharacterBody2D
 
-@export var move_speed: float = 160.0
-@export var dash_speed: float = 420.0
+@export var move_speed: float = 320.0
+@export var dash_speed: float = 1260.0
 @export var dash_duration: float = 0.16
 @export var dash_cooldown: float = 0.8
 @export var attack_cooldown: float = 0.25
+@export var max_health: float = 200.0
 
 const SlashScene := preload("res://scenes/Slash.tscn")
 
@@ -12,6 +13,7 @@ var dash_time_left: float = 0.0
 var dash_cooldown_left: float = 0.0
 var attack_cooldown_left: float = 0.0
 var invuln_time_left: float = 0.0
+var health: float = max_health
 var aim_direction: Vector2 = Vector2.RIGHT
 
 @onready var sprite: Sprite2D = $Sprite2D
@@ -51,14 +53,25 @@ func _process(delta: float) -> void:
 
 func _slash() -> void:
     var s := SlashScene.instantiate()
-    s.global_position = global_position
-    s.setup((get_global_mouse_position() - global_position).normalized())
+    var dir := (get_global_mouse_position() - global_position).normalized()
+    var distance := 40.0  # Move slash 40 pixels away from player
+    var perp_dir := Vector2(dir.y, -dir.x)  # Opposite perpendicular direction for wider swing arc
+    var offset := dir * distance + perp_dir * 30.0  # Offset along direction + less perpendicular for moderate swing arc
+    s.global_position = global_position + offset
+    s.setup(dir)
     get_parent().add_child(s)
 
 func take_damage(amount: float) -> void:
     if invuln_time_left > 0.0:
         return
+    health -= amount
+    if health <= 0.0:
+        health = 0.0
+        # TODO: handle death
     modulate = Color(1, 0.5, 0.5, 1)
     await get_tree().create_timer(0.05).timeout
     modulate = Color(1, 1, 1, 1)
+
+func get_health() -> float:
+    return health
 

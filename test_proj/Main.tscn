@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3 uid="uid://rdm8wkhuvu8j"]
+[gd_scene load_steps=7 format=3 uid="uid://rdm8wkhuvu8j"]
 
 [ext_resource type="Script" uid="uid://ddc2o6h8gxul" path="res://scripts/MapLoader.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2"]
 [ext_resource type="Script" uid="uid://cy18rvsmuf756" path="res://scripts/EnemySpawner.gd" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/Enemy.tscn" id="4"]
 [ext_resource type="Script" uid="uid://farm6k06lonn" path="res://scripts/Minimap.gd" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/Healthbar.tscn" id="6"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1")
@@ -26,4 +27,4 @@ offset_right = 212.0
 offset_bottom = 132.0
 script = ExtResource("5")
 
-; ScreenBG removed to avoid covering world visuals
+[node name="Healthbar" parent="UI" instance=ExtResource("6")]

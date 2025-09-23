@@ -3,9 +3,9 @@ render_mode unshaded, blend_add;
 
 uniform vec4 tint_color : source_color = vec4(1.0, 0.9, 0.6, 1.0);
 uniform float angle = 0.0;
-uniform float width = 0.35;
-uniform float feather = 0.15;
-uniform float tail = 0.6;
+uniform float width = 0.25;
+uniform float feather = 0.1;
+uniform float tail = 1.0;
 uniform float progress : hint_range(0.0, 1.0) = 0.0;
 
 float sd_segment(vec2 p, vec2 a, vec2 b) {
@@ -17,8 +17,8 @@ float sd_segment(vec2 p, vec2 a, vec2 b) {
 
 void fragment() {
     vec2 uv = (UV - vec2(0.5));
-    float c = cos(angle);
-    float s = sin(angle);
+    float c = cos(angle + PI / 2.0);  // Rotate by 90 degrees to make horizontal
+    float s = sin(angle + PI / 2.0);
     mat2 rot = mat2(vec2(c, -s), vec2(s, c));
     vec2 p = rot * uv * 2.0;
     float len = mix(0.0, 1.2, progress);

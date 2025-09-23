@@ -4,8 +4,8 @@
 [ext_resource type="Shader" uid="uid://p0h5y8v2w258" path="res://shaders/slash.gdshader" id="2"]
 
 [sub_resource type="CapsuleShape2D" id="102"]
-radius = 16.0
-height = 64.0
+radius = 12.0
+height = 96.0
 
 [sub_resource type="ShaderMaterial" id="101"]
 shader = ExtResource("2")

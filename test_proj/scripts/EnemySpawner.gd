@@ -32,12 +32,20 @@ func _spawn_enemy() -> void:
     var player := get_tree().get_first_node_in_group("player")
     if player == null:
         return
-    var screen: Vector2 = get_viewport().get_visible_rect().size
-    var base_r: float = max(screen.x, screen.y) * 1.5
-    var angle: float = rng.randf() * TAU
-    var radius: float = rng.randf_range(base_r * 0.9, base_r * 1.1)
-    var pos: Vector2 = player.global_position + Vector2(cos(angle), sin(angle)) * radius
-    var e := enemy_scene.instantiate()
-    e.global_position = pos
-    get_parent().add_child(e)
+    var map_size: Vector2 = get_parent().get_meta("map_size_px", Vector2.ZERO)
+    if map_size == Vector2.ZERO:
+        return
+    var tile_size: int = get_parent().get_meta("tile_size", 32)
+    var margin := float(tile_size) * 3.0
+    var min_r: float = min(map_size.x, map_size.y) * 0.2
+    var max_r: float = min(map_size.x, map_size.y) * 0.4
+    for _attempt in range(10):
+        var angle: float = rng.randf() * TAU
+        var radius: float = rng.randf_range(min_r, max_r)
+        var pos: Vector2 = player.global_position + Vector2(cos(angle), sin(angle)) * radius
+        if pos.x >= margin and pos.y >= margin and pos.x < map_size.x - margin and pos.y < map_size.y - margin:
+            var e := enemy_scene.instantiate()
+            e.global_position = pos
+            get_parent().add_child(e)
+            return
 

@@ -46,6 +46,7 @@ func take_damage(amount: float) -> void:
 func _slash_attack() -> void:
     var s := SlashScene.instantiate()
     s.hit_mask = 16
+    s.damage = 15.0  # Enemy slash damage
     s.global_position = global_position
     s.setup((player_ref.global_position - global_position).normalized())
     get_parent().add_child(s)

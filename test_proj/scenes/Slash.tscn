@@ -1,0 +1,28 @@
+[gd_scene load_steps=5 format=3 uid="uid://qf5ck0mbjg4g"]
+
+[ext_resource type="Script" uid="uid://sb6nstc0trbu" path="res://scripts/Slash.gd" id="1"]
+[ext_resource type="Shader" uid="uid://p0h5y8v2w258" path="res://shaders/slash.gdshader" id="2"]
+
+[sub_resource type="CapsuleShape2D" id="102"]
+radius = 16.0
+height = 64.0
+
+[sub_resource type="ShaderMaterial" id="101"]
+shader = ExtResource("2")
+shader_parameter/tint_color = Color(1, 0.95, 0.7, 1)
+shader_parameter/angle = 0.0
+shader_parameter/width = 0.25
+shader_parameter/feather = 0.18
+shader_parameter/tail = 0.2
+shader_parameter/progress = 0.0
+
+[node name="Slash" type="Area2D"]
+collision_layer = 0
+collision_mask = 8
+script = ExtResource("1")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("102")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+material = SubResource("101")

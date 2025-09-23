@@ -1,0 +1,7 @@
+
+*.svg
+*.import
+venv/
+*.exe
+test_proj/.godot/
+*.uid

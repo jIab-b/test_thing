@@ -1,0 +1,29 @@
+[gd_scene load_steps=6 format=3 uid="uid://rdm8wkhuvu8j"]
+
+[ext_resource type="Script" uid="uid://ddc2o6h8gxul" path="res://scripts/MapLoader.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2"]
+[ext_resource type="Script" uid="uid://cy18rvsmuf756" path="res://scripts/EnemySpawner.gd" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/Enemy.tscn" id="4"]
+[ext_resource type="Script" uid="uid://farm6k06lonn" path="res://scripts/Minimap.gd" id="5"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1")
+
+[node name="Player" parent="." instance=ExtResource("2")]
+
+[node name="EnemySpawner" type="Node" parent="."]
+script = ExtResource("3")
+enemy_scene = ExtResource("4")
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="Minimap" type="Control" parent="UI"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 212.0
+offset_bottom = 132.0
+script = ExtResource("5")
+
+; ScreenBG removed to avoid covering world visuals

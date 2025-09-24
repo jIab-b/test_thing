@@ -5,3 +5,6 @@ venv/
 *.exe
 test_proj/.godot/
 *.uid
+Aseprite/
+web_map/__pycache__/
+web_map/generated/

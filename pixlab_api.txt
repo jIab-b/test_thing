@@ -1,0 +1,286 @@
+Generate image (pixflux)​
+
+Creates a pixel art image based on the provided parameters. Called "Create image (new)" in the plugin.
+
+Supported image size:
+
+    Minimum area 32x32 and maximum area 400x400
+
+Supported features:
+
+    Init image
+    Forced palette
+    Transparent background
+
+Using the Python client:
+
+import pixellab
+
+client = pixellab.Client(secret="YOUR_API_TOKEN")
+
+response = client.generate_image_pixflux(
+    description="cute dragon",
+    image_size=dict(width=128, height=128),
+)
+response.image.pil_image()
+
+Body
+required
+application/json
+
+Request model for pixflux image generation endpoint
+
+    description
+
+Type: Description
+required
+
+Text description of the image to generate
+image_size
+Type: ImageSize
+required
+color_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data
+detail
+Type: Detailenum nullable
+
+Detail style reference (weakly guiding)
+
+    low detail
+    medium detail
+    highly detailed
+
+direction
+Type: Directionenum nullable
+
+Subject direction (weakly guiding)
+
+    north
+    north-east
+    east
+    south-east
+    south
+    south-west
+    west
+    north-west
+
+init_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data
+init_image_strength
+Type: Init Image Strength
+min:  
+1
+max:  
+999
+default: 
+300
+
+Strength of the initial image influence
+isometric
+Type: Isometric
+default: 
+false
+
+Generate in isometric view (weakly guiding)
+negative_description
+Type: Negative Description
+default: 
+""
+
+(Deprecated)
+no_background
+Type: No Background
+default: 
+false
+
+Generate with transparent background, (blank background over 200x200 area)
+outline
+Type: Outlineenum nullable
+
+Outline style reference (weakly guiding)
+
+    single color black outline
+    single color outline
+    selective outline
+    lineless
+
+seed
+
+    Type: Seed nullable
+
+    Seed decides the starting noise
+
+Request model for pixflux image generation endpoint
+Responses
+
+application/json
+401
+
+Invalid API token
+402
+
+Insufficient credits
+422
+
+Validation error
+429
+
+Too many requests
+529
+
+Rate limit exceeded
+
+
+
+enerate image (bitforge)​
+
+Generates a pixel art image based on the provided parameters. Called "Generate image (style)" in the plugin.
+
+Supported image size:
+
+    Maximum area 200x200
+
+Supported features:
+
+    Style image
+    Inpainting
+    Init image
+    Forced palette
+    Transparent background
+
+Using the Python client:
+
+import pixellab
+
+client = pixellab.Client(secret="YOUR_API_TOKEN")
+
+response = client.generate_image_bitforge(
+    description="cute dragon",
+    image_size=dict(width=128, height=128),
+)
+response.image.pil_image()
+
+Body
+required
+application/json
+
+Request model for image generation endpoint
+
+    description
+
+Type: Description
+required
+
+Text description of the image to generate
+image_size
+Type: ImageSize
+required
+color_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data
+coverage_percentage
+Type: Coverage Percentage
+min:  
+0
+max:  
+100 nullable
+
+Percentage of the canvas to cover
+detail
+Type: Detailenum nullable
+
+Detail style reference
+
+    low detail
+    medium detail
+    highly detailed
+
+direction
+Type: Directionenum nullable
+
+Subject direction
+
+    north
+    north-east
+    east
+    south-east
+    south
+    south-west
+    west
+    north-west
+
+extra_guidance_scale
+Type: Extra Guidance Scale
+min:  
+0
+max:  
+20
+default: 
+3
+
+(Deprecated)
+init_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data
+init_image_strength
+Type: Init Image Strength
+min:  
+1
+max:  
+999
+default: 
+300
+
+Strength of the initial image influence
+inpainting_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data
+isometric
+Type: Isometric
+default: 
+false
+
+Generate in isometric view
+mask_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data
+
+Request model for image generation endpoint
+Responses
+
+application/json
+401
+
+Invalid API token
+402
+
+Insufficient credits
+422
+
+Validation error
+429
+
+Too many requests
+529
+
+Rate limit exceeded

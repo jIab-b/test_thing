@@ -97,6 +97,35 @@ static func import_map(parent: Node, json_path: String) -> void:
             sprite.position = Vector2((x + 0.5) * tile_size, (y + 0.5) * tile_size)
             blocks_node.add_child(sprite)
 
+    var tileset := {} if data == null or typeof(data) != TYPE_DICTIONARY else data.get("tileset", {})
+    var tile_indices := [] if data == null or typeof(data) != TYPE_DICTIONARY else data.get("tile_indices", [])
+    if typeof(tileset) == TYPE_DICTIONARY and tile_indices is Array and tile_indices.size() > 0:
+        var file := String(tileset.get("file", ""))
+        var tw := int(tileset.get("tile_w", tile_size))
+        var th := int(tileset.get("tile_h", tile_size))
+        var cols := int(tileset.get("columns", 1))
+        if file != "" and tw > 0 and th > 0 and cols > 0:
+            var atlas: Texture2D = load(file)
+            if atlas != null:
+                var tiles_node := Node2D.new()
+                tiles_node.name = "Tiles"
+                tiles_node.z_index = 1
+                parent.add_child(tiles_node)
+                for t in tile_indices:
+                    if t is Array and t.size() >= 3:
+                        var tx := int(t[0])
+                        var ty := int(t[1])
+                        var idx := int(t[2])
+                        var at := AtlasTexture.new()
+                        at.atlas = atlas
+                        var rx := (idx % cols) * tw
+                        var ry := int(idx / cols) * th
+                        at.region = Rect2(rx, ry, tw, th)
+                        var s := Sprite2D.new()
+                        s.texture = at
+                        s.position = Vector2((tx + 0.5) * tile_size, (ty + 0.5) * tile_size)
+                        tiles_node.add_child(s)
+
     var center_pos := Vector2(width_px * 0.4, height_px * 0.4)
     var timer := parent.get_tree().create_timer(0.01)
     timer.timeout.connect(func():

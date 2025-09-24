@@ -1,0 +1,3273 @@
+Pixel Lab API
+
+The API provides endpoints for creating AI-generated pixel art images, rotations, animations, and more. Making it easy for applications to integrate pixel art generation capabilities.
+AI Assistant Integration
+
+For use with AI assistants (Claude Code, ChatGPT, Cursor, etc.), use the auto-generated documentation:
+
+https://api.pixellab.ai/v2/llms.txt
+
+Python Client
+
+For convenience, a Python client library is available to simplify integration with your applications. Visit our GitHub repository for installation instructions and examples.
+
+pip install pixellab
+
+Authentication
+
+The API uses a simple token based authentication system. After creating an account, you can find your API token in your account settings. Include this token in all API requests using the Bearer authentication scheme:
+
+curl -X POST https://api.pixellab.ai/v2/create-image-pixflux \
+    -H "Authorization: Bearer YOUR_API_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+        "description": "cute dragon",
+        "image_size": {"width": 128, "height": 128}
+    }'
+
+Or use the Python client:
+
+import pixellab
+
+client = pixellab.Client(secret="YOUR_API_TOKEN")
+client.create_image_pixflux(
+    description="cute dragon",
+    image_size=dict(width=128, height=128),
+)
+
+Supported models
+
+    Create image Bitforge: Apply custom art styles using reference images.
+    Create image Pixflux: Generate pixel art from text descriptions.
+    Create tileset: Create complete tilesets for game development with seamless connections.
+    Create isometric tile: Create isometric tiles in various shapes (thick tile, thin tile, block).
+    Animate with skeleton: Generate 4 frames of an animation from skeleton poses.
+    Animate with text: Generate animation from text descriptions.
+    Inpaint: Edit and modify existing pixel art.
+    Rotate: Rotate an object or a character.
+
+Character Creation & Management (New)
+
+    Create character with 4 directions: Create persistent characters with 4 directional rotations stored for reuse.
+    Create character with 8 directions: Create persistent characters with 8 directional rotations stored for reuse.
+    Animate character: Add animations to existing characters with automatic multi-direction processing.
+    List characters: View all your created characters with metadata and preview images.
+    Get character details: Access complete character information and all rotation image URLs.
+    Export character: Download characters as ZIP files with rotations, animations, and keypoint metadata.
+    Background job status: Monitor the progress of character creation and animation jobs.
+
+Server
+Server:https://api.pixellab.ai/v2
+No authentication selected
+Client Libraries
+Python http.client
+Create Image ​
+Create Image Operations
+
+    post/create-image-pixflux
+    post/create-image-bitforge
+
+Create image (pixflux)​
+
+Creates a pixel art image based on the provided parameters. Called "Create image (new)" in the plugin.
+
+Supported image size:
+
+    Minimum area 32x32 and maximum area 400x400
+
+Supported features:
+
+    Init image
+    Forced palette
+    Transparent background
+
+Using the Python client:
+
+import pixellab
+
+client = pixellab.Client(secret="YOUR_API_TOKEN")
+
+response = client.generate_image_pixflux(
+    description="cute dragon",
+    image_size=dict(width=128, height=128),
+)
+response.image.pil_image()
+
+Body
+required
+application/json
+
+Request model for pixflux image generation endpoint
+
+    description
+
+Type: Description
+required
+
+Text description of the image to generate
+image_size
+Type: ImageSize
+required
+background_removal_task
+Type: Background Removal Taskenum
+default: 
+"remove_simple_background"
+
+Background removal complexity. 'remove_simple_background' is faster, 'remove_complex_background' handles complex edges better
+
+    remove_simple_background
+    remove_complex_background
+
+color_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+detail
+Type: Detailenum nullable
+
+Detail style reference (weakly guiding)
+
+    low detail
+    medium detail
+    highly detailed
+
+direction
+Type: Directionenum nullable
+
+Subject direction (weakly guiding)
+
+    north
+    north-east
+    east
+    south-east
+    south
+    south-west
+    west
+    north-west
+
+init_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+init_image_strength
+Type: Init Image Strength
+min:  
+1
+max:  
+999
+default: 
+300
+
+Strength of the initial image influence
+isometric
+Type: Isometric
+default: 
+false
+
+Generate in isometric view (weakly guiding)
+negative_description
+Type: Negative Description
+default: 
+""
+
+(Deprecated)
+no_background
+Type: No Background
+default: 
+false
+
+Generate with transparent background, (blank background over 200x200 area)
+outline
+
+    Type: Outlineenum nullable
+
+    Outline style reference (weakly guiding)
+        single color black outline
+        single color outline
+        selective outline
+        lineless
+
+Request model for pixflux image generation endpoint
+Responses
+
+application/json
+401
+
+Invalid API token
+402
+
+Insufficient credits
+422
+
+Validation error
+429
+
+Too many requests
+529
+
+    Rate limit exceeded
+
+Request Example for post/create-image-pixflux
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+payload = "{\"description\":\"cute dragon\",\"image_size\":{\"height\":128,\"width\":128},\"no_background\":true}"
+
+headers = {
+    'Content-Type': "application/json",
+    'Authorization': "Bearer YOUR_SECRET_TOKEN"
+}
+
+conn.request("POST", "/v2/create-image-pixflux", payload, headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "usage": {
+    "type": "usd",
+    "usd": 0.02
+  },
+  "image": {
+    "type": "base64",
+    "base64": "string",
+    "format": "png"
+  }
+}
+
+Successfully generated image
+Create image (bitforge)​
+
+Generates a pixel art image based on the provided parameters. Called "Create S-M image" in the plugin.
+
+Supported image size:
+
+    Maximum area 200x200
+
+Supported features:
+
+    Style image
+    Inpainting
+    Init image
+    Forced palette
+    Transparent background
+
+Using the Python client:
+
+import pixellab
+
+client = pixellab.Client(secret="YOUR_API_TOKEN")
+
+response = client.generate_image_bitforge(
+    description="cute dragon",
+    image_size=dict(width=128, height=128),
+)
+response.image.pil_image()
+
+Body
+required
+application/json
+
+Request model for image generation endpoint
+
+    description
+
+Type: Description
+required
+
+Text description of the image to generate
+image_size
+Type: ImageSize
+required
+color_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+coverage_percentage
+Type: Coverage Percentage
+min:  
+0
+max:  
+100 nullable
+
+Percentage of the canvas to cover
+detail
+Type: Detailenum nullable
+
+Detail style reference
+
+    low detail
+    medium detail
+    highly detailed
+
+direction
+Type: Directionenum nullable
+
+Subject direction
+
+    north
+    north-east
+    east
+    south-east
+    south
+    south-west
+    west
+    north-west
+
+extra_guidance_scale
+Type: Extra Guidance Scale
+min:  
+0
+max:  
+20
+default: 
+3
+
+(Deprecated)
+init_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+init_image_strength
+Type: Init Image Strength
+min:  
+1
+max:  
+999
+default: 
+300
+
+Strength of the initial image influence
+inpainting_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+isometric
+Type: Isometric
+default: 
+false
+
+Generate in isometric view
+mask_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+
+Request model for image generation endpoint
+Responses
+
+application/json
+401
+
+Invalid API token
+402
+
+Insufficient credits
+422
+
+Validation error
+429
+
+Too many requests
+529
+
+    Rate limit exceeded
+
+Request Example for post/create-image-bitforge
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+payload = "{\"description\":\"cute dragon\",\"image_size\":{\"height\":128,\"width\":128},\"no_background\":true,\"style_guidance_scale\":3,\"style_strength\":20,\"text_guidance_scale\":3}"
+
+headers = {
+    'Content-Type': "application/json",
+    'Authorization': "Bearer YOUR_SECRET_TOKEN"
+}
+
+conn.request("POST", "/v2/create-image-bitforge", payload, headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "usage": {
+    "type": "usd",
+    "usd": 0.02
+  },
+  "image": {
+    "type": "base64",
+    "base64": "string",
+    "format": "png"
+  }
+}
+
+Successfully generated image
+Animate ​
+Animate Operations
+
+    post/animate-with-skeleton
+    post/animate-with-text
+    post/estimate-skeleton
+
+Animate with skeleton​
+
+Creates a pixel art animation based on the provided parameters. Called "Animate with skeleton" in the plugin.
+
+Supported image sizes:
+
+    16x16
+    32x32
+    64x64
+    128x128
+    256x256
+
+Supported features:
+
+    Inpainting
+    Init image
+    Forced palette
+
+Using the Python client:
+
+import pixellab
+
+client = pixellab.Client(secret="YOUR_API_TOKEN")
+
+response = client.animate_with_skeleton(
+    view="side",
+    direction="south",
+    image_size=dict(width=64, height=64),
+    reference_image=reference_image,
+    inpainting_images=existing_animation_frames,
+    mask_images=mask_images,
+    skeleton_keypoints=skeleton_keypoints,
+)
+images = [image.pil_image() for image in response.images]
+
+Body
+required
+application/json
+
+Request model for animation using skeleton endpoint
+
+    image_size
+
+Type: ImageSize
+required
+reference_image
+Type: Base64Image
+required
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+color_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+direction
+Type: Directionenum
+
+    north
+    north-east
+    east
+    south-east
+    south
+    south-west
+    west
+    north-west
+
+guidance_scale
+Type: Guidance Scale
+min:  
+1
+max:  
+20
+default: 
+4
+
+How closely to follow the reference image and skeleton keypoints
+init_image_strength
+Type: Init Image Strength
+min:  
+1
+max:  
+999
+default: 
+300
+
+Strength of the initial image influence
+init_images
+Type: array Init Images[] nullable
+
+Initial images to start the generation from
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+inpainting_images
+Type: array Inpainting Images[]
+default: 
+[null,null,null]
+
+Images used for showing the model with connected skeleton
+isometric
+Type: Isometric
+default: 
+false
+
+Generate in isometric view
+mask_images
+Type: array Mask Images[]
+
+Inpainting / mask image (black and white image, where the white is where the model should inpaint)
+oblique_projection
+Type: Oblique Projection
+default: 
+false
+
+Generate in oblique projection
+seed
+
+    Type: Seed nullable
+
+    Seed decides the starting noise
+
+Request model for animation using skeleton endpoint
+Responses
+
+application/json
+401
+
+Invalid API token
+402
+
+Insufficient credits
+422
+
+Validation error
+429
+
+Too many requests
+529
+
+    Rate limit exceeded
+
+Request Example for post/animate-with-skeleton
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+payload = "{\"image_size\":{\"height\":64,\"width\":64}}"
+
+headers = {
+    'Content-Type': "application/json",
+    'Authorization': "Bearer YOUR_SECRET_TOKEN"
+}
+
+conn.request("POST", "/v2/animate-with-skeleton", payload, headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "usage": {
+    "type": "usd",
+    "usd": 0.02
+  },
+  "images": [
+    {
+      "type": "base64",
+      "base64": "string",
+      "format": "png"
+    }
+  ]
+}
+
+Successfully generated image
+Animate with text​
+
+Creates a pixel art animation based on text description and parameters.
+
+Supported image sizes:
+
+    64x64
+
+Supported features:
+
+    Text-guided animation generation
+    Inpainting
+    Init image
+    Forced palette
+    Multiple frames
+
+Using the Python client:
+
+import pixellab
+
+client = pixellab.Client(secret="YOUR_API_TOKEN")
+
+response = client.animate_with_text(
+    description="human mage",
+    action="walk",
+    view="side",
+    direction="south",
+    image_size=dict(width=64, height=64),
+    reference_image=reference_image,
+    n_frames=4
+)
+images = [image.pil_image() for image in response.images]
+
+Body
+required
+application/json
+
+Request model for animation using text endpoint
+
+    action
+
+Type: Action
+required
+
+Action description
+description
+Type: Description
+required
+
+Character description
+image_size
+Type: ImageSize
+required
+reference_image
+Type: Base64Image
+required
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+color_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+direction
+Type: Directionenum
+
+    north
+    north-east
+    east
+    south-east
+    south
+    south-west
+    west
+    north-west
+
+image_guidance_scale
+Type: Image Guidance Scale
+min:  
+1
+max:  
+20
+default: 
+1.4 nullable
+
+How closely to follow the reference image
+init_image_strength
+Type: Init Image Strength
+min:  
+1
+max:  
+999
+default: 
+300
+
+Strength of the initial image influence
+init_images
+Type: array Init Images[] nullable
+
+Initial images to start the generation from
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+inpainting_images
+Type: array Inpainting Images[]
+default: 
+[null,null,null,null]
+
+Existing animation frames to guide the generation
+mask_images
+Type: array Mask Images[]
+default: 
+[null,null,null,null] nullable
+
+Inpainting / mask image (black and white image, where the white is where the model should inpaint)
+n_frames
+
+    Type: N Frames
+    min:  
+    2
+    max:  
+    20
+    default: 
+    4 nullable
+
+    Length of full animation (the model will always generate 4 frames)
+
+Request model for animation using text endpoint
+Responses
+
+application/json
+401
+
+Invalid API token
+402
+
+Insufficient credits
+422
+
+Validation error
+429
+
+Too many requests
+529
+
+    Rate limit exceeded
+
+Request Example for post/animate-with-text
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+payload = "{\"action\":\"walk\",\"description\":\"human mage\",\"direction\":\"south\",\"image_size\":{\"height\":64,\"width\":64},\"view\":\"side\"}"
+
+headers = {
+    'Content-Type': "application/json",
+    'Authorization': "Bearer YOUR_SECRET_TOKEN"
+}
+
+conn.request("POST", "/v2/animate-with-text", payload, headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "usage": {
+    "type": "usd",
+    "usd": 0.02
+  },
+  "images": [
+    {
+      "type": "base64",
+      "base64": "string",
+      "format": "png"
+    }
+  ]
+}
+
+Successfully generated animation
+Estimate skeleton​
+
+Estimates the skeleton of a character, returning a list of keypoints to use with the skeleton animation tool.
+
+Supported image sizes:
+
+    16x16
+    32x32
+    64x64
+    128x128
+    256x256
+
+Using the Python client:
+
+import pixellab
+
+client = pixellab.Client(secret="YOUR_API_TOKEN")
+
+response = client.estimate_skeleton(
+    image=image_of_the_character_on_a_transparent_background,
+)
+response.keypoints
+
+Body
+required
+application/json
+
+Request model for estimate skeleton endpoint
+
+    image
+
+Type: Base64Image
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+
+Responses
+
+application/json
+401
+
+Invalid API token
+402
+
+Insufficient credits
+422
+
+Validation error
+429
+
+Too many requests
+529
+
+    Rate limit exceeded
+
+Request Example for post/estimate-skeleton
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+payload = "{\"image\":{\"type\":\"base64\",\"base64\":\"\",\"format\":\"png\"}}"
+
+headers = {
+    'Content-Type': "application/json",
+    'Authorization': "Bearer YOUR_SECRET_TOKEN"
+}
+
+conn.request("POST", "/v2/estimate-skeleton", payload, headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "usage": {
+    "type": "usd",
+    "usd": 0.02
+  },
+  "keypoints": [
+    {
+      "x": 1,
+      "y": 1,
+      "label": "string",
+      "z_index": 1
+    }
+  ]
+}
+
+Successfully generated image
+Rotate ​
+Rotate Operations
+
+    post/rotate
+
+Rotate character or object​
+
+Rotates a pixel art image based on the provided parameters. Called "Rotate" in the plugin.
+
+Supported image sizes:
+
+    16x16
+    32x32
+    64x64
+    128x128
+
+Supported features:
+
+    Init image
+    Forced palette
+
+Using the Python client:
+
+import pixellab
+
+client = pixellab.Client(secret="YOUR_API_TOKEN")
+
+response = client.rotate(
+    from_view="side",
+    to_view="side",
+    from_direction="south",
+    to_direction="east",
+    image_size=dict(width=16, height=16),
+    from_image=image_of_subject_facing_south,
+)
+response.image.pil_image()
+
+Body
+required
+application/json
+
+Request model for image generation endpoint
+
+    from_image
+
+Type: Base64Image
+required
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+image_size
+Type: ImageSize
+required
+color_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+direction_change
+Type: Direction Change
+min:  
+-180
+max:  
+180 nullable
+
+How many degrees to rotate the subject
+from_direction
+Type: Directionenum
+default: 
+"south" nullable
+
+From subject direction
+
+    north
+    north-east
+    east
+    south-east
+    south
+    south-west
+    west
+    north-west
+
+from_view
+Type: CameraViewenum
+default: 
+"side" nullable
+
+From camera view angle
+
+    side
+    low top-down
+    high top-down
+
+image_guidance_scale
+Type: Image Guidance Scale
+min:  
+1
+max:  
+20
+default: 
+3
+
+How closely to follow the reference image
+init_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+init_image_strength
+Type: Init Image Strength
+min:  
+1
+max:  
+999
+default: 
+300
+
+Strength of the initial image influence
+isometric
+Type: Isometric
+default: 
+false
+
+Generate in isometric view
+mask_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+oblique_projection
+
+    Type: Oblique Projection
+    default: 
+    false
+
+    Generate in oblique projection
+
+Request model for image generation endpoint
+Responses
+
+application/json
+401
+
+Invalid API token
+402
+
+Insufficient credits
+422
+
+Validation error
+429
+
+Too many requests
+529
+
+    Rate limit exceeded
+
+Request Example for post/rotate
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+payload = "{\"description\":\"cute dragon\",\"from_direction\":\"south\",\"from_view\":\"side\",\"image_guidance_scale\":7.5,\"image_size\":{\"height\":128,\"width\":128},\"to_direction\":\"east\",\"to_view\":\"side\"}"
+
+headers = {
+    'Content-Type': "application/json",
+    'Authorization': "Bearer YOUR_SECRET_TOKEN"
+}
+
+conn.request("POST", "/v2/rotate", payload, headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "usage": {
+    "type": "usd",
+    "usd": 0.02
+  },
+  "image": {
+    "type": "base64",
+    "base64": "string",
+    "format": "png"
+  }
+}
+
+Successfully generated image
+Inpaint ​
+Inpaint Operations
+
+    post/inpaint
+
+Inpaint image​
+
+Creates a pixel art image based on the provided parameters. Called "Inpaint" in the plugin.
+
+Supported image size:
+
+    Maximum area 200x200
+
+Supported features:
+
+    Inpainting
+    Init image
+    Forced palette
+    Transparent background
+
+Using the Python client:
+
+import pixellab
+
+client = pixellab.Client(secret="YOUR_API_TOKEN")
+
+response = client.inpaint(
+    description="boy with wings",
+    image_size=dict(width=16, height=16),
+    inpainting_image=image_of_boy_without_wings,
+    mask_image=mask_image,
+)
+response.image.pil_image()
+
+Body
+required
+application/json
+
+Request model for image generation endpoint
+
+    description
+
+Type: Description
+required
+
+Text description of the image to generate
+image_size
+Type: ImageSize
+required
+inpainting_image
+Type: Base64Image
+required
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+mask_image
+Type: Base64Image
+required
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+color_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+detail
+Type: Detailenum nullable
+
+Detail style reference
+
+    low detail
+    medium detail
+    highly detailed
+
+direction
+Type: Directionenum nullable
+
+Subject direction
+
+    north
+    north-east
+    east
+    south-east
+    south
+    south-west
+    west
+    north-west
+
+extra_guidance_scale
+Type: Extra Guidance Scale
+min:  
+0
+max:  
+20
+default: 
+3
+
+(Deprecated)
+init_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+init_image_strength
+Type: Init Image Strength
+min:  
+1
+max:  
+999
+default: 
+300
+
+Strength of the initial image influence
+isometric
+Type: Isometric
+default: 
+false
+
+Generate in isometric view
+negative_description
+
+    Type: Negative Description
+    default: 
+    ""
+
+    Text description of what to avoid in the generated image
+
+Request model for image generation endpoint
+Responses
+
+application/json
+401
+
+Invalid API token
+402
+
+Insufficient credits
+422
+
+Validation error
+429
+
+Too many requests
+529
+
+    Rate limit exceeded
+
+Request Example for post/inpaint
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+payload = "{\"description\":\"cute dragon\",\"image_size\":{\"height\":128,\"width\":128},\"no_background\":true}"
+
+headers = {
+    'Content-Type': "application/json",
+    'Authorization': "Bearer YOUR_SECRET_TOKEN"
+}
+
+conn.request("POST", "/v2/inpaint", payload, headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "usage": {
+    "type": "usd",
+    "usd": 0.02
+  },
+  "image": {
+    "type": "base64",
+    "base64": "string",
+    "format": "png"
+  }
+}
+
+Successfully generated image
+Create map ​
+Create map Operations
+
+    post/tilesets
+    post/create-tileset
+    get/tilesets/{tileset_id}
+    post/create-isometric-tile
+    get/isometric-tiles/{tile_id}
+
+Create a tileset asynchronously​
+
+Creates a Wang tileset with 16 tiles in the background and returns immediately with job ID
+Body
+required
+application/json
+
+Request model for tileset generation endpoint
+
+    lower_description
+
+Type: Lower Description
+min length:  
+1
+required
+
+Description of the lower/base terrain level (e.g., 'ocean', 'grass', 'lava')
+upper_description
+Type: Upper Description
+min length:  
+1
+required
+
+Description of the upper/elevated terrain level (e.g., 'sand', 'stone', 'snow')
+color_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+detail
+Type: Detailenum nullable
+
+Detail style reference
+
+    low detail
+    medium detail
+    highly detailed
+
+lower_base_tile_id
+Type: Lower Base Tile Id nullable
+
+Optional ID to identify the lower base tile in metadata
+lower_reference_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+outline
+Type: Outlineenum nullable
+
+Outline style reference
+
+    single color black outline
+    single color outline
+    selective outline
+    lineless
+
+seed
+Type: Seed nullable
+
+Seed for reproducible generation
+shading
+Type: Shadingenum nullable
+
+Shading style reference
+
+    flat shading
+    basic shading
+    medium shading
+    detailed shading
+    highly detailed shading
+
+text_guidance_scale
+Type: Text Guidance Scale
+min:  
+1
+max:  
+20
+default: 
+8
+
+How closely to follow the text descriptions (default: 8.0)
+tile_size
+Type: TileSize
+tile_strength
+
+    Type: Tile Strength
+    min:  
+    0.1
+    max:  
+    2
+    default: 
+    1
+
+    Strength of tile pattern adherence
+
+Request model for tileset generation endpoint
+Responses
+
+application/json
+401
+
+Invalid API token
+402
+
+Insufficient credits
+422
+
+Validation error
+429
+
+Too many requests
+529
+
+    Rate limit exceeded
+
+Request Example for post/tilesets
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+payload = "{\"lower_description\":\"deep blue ocean water with gentle waves\",\"tile_size\":{\"height\":16,\"width\":16},\"transition_description\":\"wet sand with foam\",\"transition_size\":0.5,\"upper_description\":\"golden sandy beach\",\"view\":\"high top-down\"}"
+
+headers = {
+    'Content-Type': "application/json",
+    'Authorization': "Bearer YOUR_SECRET_TOKEN"
+}
+
+conn.request("POST", "/v2/tilesets", payload, headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "metadata": {
+    "created_at": "2024-01-15T10:30:45Z",
+    "edge_types": [
+      "lower",
+      "upper"
+    ],
+    "generation_parameters": {
+      "text_guidance_scale": 8,
+      "tile_strength": 1,
+      "tileset_adherence": 100,
+      "tileset_adherence_freedom": 500
+    },
+    "terrain_ids": {
+      "lower_base_tile_id": "123e4567-e89b-12d3-a456-426614174000",
+      "upper_base_tile_id": "987fcdeb-51a2-43f1-9876-543210fedcba"
+    },
+    "terrain_prompts": {
+      "lower": "deep blue ocean water with gentle waves",
+      "transition": "wet sand with foam",
+      "upper": "golden sandy beach"
+    },
+    "transition_size": 0.5,
+    "view": "high top-down"
+  },
+  "tileset": {
+    "terrain_types": [
+      "lower",
+      "upper"
+    ],
+    "tile_size": {
+      "height": 16,
+      "width": 16
+    },
+    "tiles": [
+      {
+        "connections": [
+          "a1b2c3d4-58cc-4372-a567-0e02b2c3d480",
+          "b2c3d4e5-58cc-4372-a567-0e02b2c3d481"
+        ],
+        "corners": {
+          "NE": "lower",
+          "NW": "lower",
+          "SE": "lower",
+          "SW": "lower"
+        },
+        "description": "Lower terrain in all corners",
+        "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+        "image_data": "data:image/png;base64,iVBORw0KGgo...",
+        "name": "NW+NE+SW+SE"
+      }
+    ],
+    "total_tiles": 16
+  },
+  "usage": {
+    "type": "usd",
+    "usd": 0.02
+  }
+}
+
+Tileset creation started, returns job ID
+Create top-down tileset (async processing)​
+
+Creates a complete tileset for game development with seamlessly connecting tiles.
+
+A tileset is a collection of 16 individual tiles that can be combined to create larger maps and environments. This endpoint generates tiles representing two terrain levels - "lower" and "upper" - that connect seamlessly when placed adjacent to each other.
+
+Understanding Lower and Upper Terrain:
+
+    Lower terrain: The base level terrain (e.g., water, grass, lava)
+    Upper terrain: The elevated terrain level (e.g., beach, dirt path, rock)
+    Transition size: Controls the visual height difference between levels. Larger transitions (0.25-0.5) create a more pronounced elevation effect, making it appear as if the upper terrain is on a higher plane
+
+Features:
+
+    Returns 16 individual tiles with unique IDs
+    Corner-based terrain classification (NW, NE, SW, SE)
+    Pre-calculated connection compatibility between tiles
+    Lower and upper terrain levels for elevation variety
+    Tile sizes: 16x16 or 32x32 pixels
+    Seamless tile connections for map creation
+    Style control via outline, shading, and detail parameters
+    Reference images for style guidance
+    Color palette control
+
+Response format:
+
+    Each tile includes: UUID, name, description, base64 image, corner data, connections
+    Corner data specifies "lower" or "upper" terrain for each corner (NW, NE, SW, SE)
+    Connection data lists UUIDs of compatible adjacent tiles in each direction
+    Metadata includes terrain prompts and creation timestamp
+
+Common use cases:
+
+    Beach environments: water/sand with wet sand transitions
+    Forest paths: grass/dirt with muddy transitions
+    Dungeon floors: stone floor/walls with cracked stone transitions
+    Snow landscapes: snow/rock with icy transitions
+    Desert oases: sand/water with muddy bank transitions
+    Lava caves: rock/lava with molten rock transitions
+
+Using the Python client:
+
+import pixellab
+
+client = pixellab.Client(secret="YOUR_API_TOKEN")
+
+# Generate a beach/ocean tileset
+response = client.generate_tileset(
+    lower_description="deep blue ocean water with gentle waves",
+    upper_description="golden sandy beach",
+    transition_description="wet sand with foam",
+    tile_size=dict(width=16, height=16),
+    transition_size=0.5,
+    view="high top-down"
+)
+
+# Access individual tiles
+for tile in response.tileset.tiles:
+    print(f"Tile {tile.name}: {tile.description}")
+    print(f"  Corners: NW={tile.corners.NW}, NE={tile.corners.NE}, SW={tile.corners.SW}, SE={tile.corners.SE}")
+    print(f"  Can connect to {len(tile.connections)} other tiles")
+    
+    # Save individual tile images
+    import base64
+    with open(f"tile_{tile.id[:8]}.png", "wb") as f:
+        f.write(base64.b64decode(tile.image.base64))
+
+Body
+required
+application/json
+
+Request model for tileset generation endpoint
+
+    lower_description
+
+Type: Lower Description
+min length:  
+1
+required
+
+Description of the lower/base terrain level (e.g., 'ocean', 'grass', 'lava')
+upper_description
+Type: Upper Description
+min length:  
+1
+required
+
+Description of the upper/elevated terrain level (e.g., 'sand', 'stone', 'snow')
+color_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+detail
+Type: Detailenum nullable
+
+Detail style reference
+
+    low detail
+    medium detail
+    highly detailed
+
+lower_base_tile_id
+Type: Lower Base Tile Id nullable
+
+Optional ID to identify the lower base tile in metadata
+lower_reference_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+outline
+Type: Outlineenum nullable
+
+Outline style reference
+
+    single color black outline
+    single color outline
+    selective outline
+    lineless
+
+seed
+Type: Seed nullable
+
+Seed for reproducible generation
+shading
+Type: Shadingenum nullable
+
+Shading style reference
+
+    flat shading
+    basic shading
+    medium shading
+    detailed shading
+    highly detailed shading
+
+text_guidance_scale
+Type: Text Guidance Scale
+min:  
+1
+max:  
+20
+default: 
+8
+
+How closely to follow the text descriptions (default: 8.0)
+tile_size
+Type: TileSize
+tile_strength
+
+    Type: Tile Strength
+    min:  
+    0.1
+    max:  
+    2
+    default: 
+    1
+
+    Strength of tile pattern adherence
+
+Request model for tileset generation endpoint
+Responses
+
+application/json
+application/json
+401
+
+Invalid API token
+402
+
+Insufficient credits
+422
+
+Validation error
+429
+
+Too many requests
+529
+
+    Rate limit exceeded
+
+Request Example for post/create-tileset
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+payload = "{\"lower_description\":\"deep blue ocean water with gentle waves\",\"upper_description\":\"golden sandy beach\",\"transition_description\":\"wet sand with foam\",\"tile_size\":{\"width\":16,\"height\":16},\"transition_size\":0.5,\"view\":\"high top-down\"}"
+
+headers = {
+    'Content-Type': "application/json",
+    'Authorization': "Bearer YOUR_SECRET_TOKEN"
+}
+
+conn.request("POST", "/v2/create-tileset", payload, headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+No Body
+
+Successfully generated tileset
+Get generated tileset by ID​
+
+Retrieve a completed tileset by its UUID.
+
+This endpoint returns the complete tileset data including all 16 tiles with their images, corner data, connections, and metadata. Use this after background processing completes.
+
+The tileset ID is returned immediately when you submit a tileset generation request. Check the background job status first to ensure generation is complete.
+
+Response includes:
+
+    All 16 tiles with base64 PNG images
+    Corner classifications (NW, NE, SW, SE) for each tile
+    Connection compatibility data for seamless placement
+    Generation metadata and parameters
+    Terrain descriptions and style settings
+
+Example usage:
+
+import pixellab
+
+client = pixellab.Client(secret="YOUR_API_TOKEN")
+
+# Get completed tileset
+tileset = client.get_tileset("f47ac10b-58cc-4372-a567-0e02b2c3d479")
+
+# Access tiles
+for tile in tileset.tileset.tiles:
+    print(f"Tile {tile.name}: {tile.description}")
+    # Save tile image
+    with open(f"tile_{tile.id[:8]}.png", "wb") as f:
+        f.write(base64.b64decode(tile.image.base64))
+
+Path Parameters
+
+    tileset_id
+
+    Type: Tileset Id
+    required
+
+Responses
+
+application/json
+401
+
+Invalid API token
+404
+
+Tileset not found
+application/json
+423
+
+    Tileset is still being generated
+
+Request Example for get/tilesets/{tileset_id}
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+headers = { 'Authorization': "Bearer YOUR_SECRET_TOKEN" }
+
+conn.request("GET", "/v2/tilesets/%7Btileset_id%7D", headers=headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "usage": {
+    "type": "usd",
+    "usd": 0.02
+  },
+  "tileset": {
+    "total_tiles": 16,
+    "tile_size": {
+      "height": 16,
+      "width": 16
+    },
+    "terrain_types": [
+      "lower",
+      "upper"
+    ],
+    "tiles": [
+      {
+        "id": "string",
+        "name": "string",
+        "description": "string",
+        "image": {
+          "type": "base64",
+          "base64": "string",
+          "format": "png"
+        },
+        "corners": {
+          "NW": "lower",
+          "NE": "lower",
+          "SW": "lower",
+          "SE": "lower"
+        },
+        "connections": {
+          "north": [
+            "string"
+          ],
+          "south": [
+            "string"
+          ],
+          "east": [
+            "string"
+          ],
+          "west": [
+            "string"
+          ]
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "edge_types": [
+      "string"
+    ],
+    "terrain_prompts": {
+      "propertyName*": "string"
+    },
+    "terrain_ids": {
+      "propertyName*": "string"
+    },
+    "transition_size": 1,
+    "view": "string",
+    "generation_parameters": {
+      "propertyName*": "anything"
+    },
+    "created_at": "string"
+  }
+}
+
+Successfully retrieved tileset
+Create isometric tile (async processing)​
+
+Creates a isometric tile based on the provided parameters.
+
+Supported image size:
+
+    Minimum area 16x16 and maximum area 64x64
+    Sizes above 24x24 often produce better quality results
+
+Supported features:
+
+    Init image
+    Forced palette
+
+Using the Python client:
+
+import pixellab
+
+client = pixellab.Client(secret="YOUR_API_TOKEN")
+
+response = client.generate_isometric_tile(
+    description="grass on top of dirt",
+    image_size=dict(width=32, height=32),
+)
+response.image.pil_image()
+
+Body
+required
+application/json
+
+Request model for pixflux image generation endpoint
+
+    description
+
+Type: Description
+required
+
+Text description of the image to generate
+image_size
+Type: ImageSize
+required
+color_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+detail
+Type: Detailenum
+default: 
+"medium detail" nullable
+
+Level of detail in the tile
+
+    low detail
+    medium detail
+    highly detailed
+
+init_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+init_image_strength
+Type: Init Image Strength
+min:  
+1
+max:  
+999
+default: 
+300
+
+Strength of the initial image influence
+isometric_tile_shape
+Type: Isometric Tile Shapeenum
+default: 
+"block"
+
+Tile thickness. Thicker tiles allow more height variation in game maps. thin tile: ~15% canvas height, thick tile: ~25% height, block: ~50% height
+
+    thick tile
+    thin tile
+    block
+
+isometric_tile_size
+Type: Isometric Tile Sizeenum
+default: 
+16 nullable
+
+Size of the isometric tile. Recommended sizes: 16, 32. Can be omitted for default.
+
+    16
+    32
+
+outline
+Type: Outlineenum
+default: 
+"lineless" nullable
+
+Outline style for the tile
+
+    single color outline
+    selective outline
+    lineless
+
+seed
+Type: Seed nullable
+
+Seed decides the starting noise
+shading
+Type: Shadingenum
+default: 
+"basic shading" nullable
+
+Shading complexity
+
+    flat shading
+    basic shading
+    medium shading
+    detailed shading
+    highly detailed shading
+
+text_guidance_scale
+
+    Type: Text Guidance Scale
+    min:  
+    1
+    max:  
+    20
+    default: 
+    8
+
+    How closely to follow the text description
+
+Responses
+
+application/json
+application/json
+401
+
+Invalid API token
+402
+
+Insufficient credits
+422
+
+Validation error
+429
+
+Too many requests
+529
+
+    Rate limit exceeded
+
+Request Example for post/create-isometric-tile
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+payload = "{\"description\":\"grass on top of dirt\",\"image_size\":{\"height\":32,\"width\":32}}"
+
+headers = {
+    'Content-Type': "application/json",
+    'Authorization': "Bearer YOUR_SECRET_TOKEN"
+}
+
+conn.request("POST", "/v2/create-isometric-tile", payload, headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+No Body
+
+Successfully generated image
+Get generated isometric tile by ID​
+
+Retrieve a completed isometric tile by its UUID.
+
+This endpoint returns the isometric tile image after background processing completes. Use this after the tile generation is finished.
+
+The tile ID is returned immediately when you submit a tile generation request. Check the background job status first to ensure generation is complete.
+
+Response includes:
+
+    Base64 PNG image with transparent background
+    Usage information
+
+Example usage:
+
+import pixellab
+
+client = pixellab.Client(secret="YOUR_API_TOKEN")
+
+# Get completed tile
+tile = client.get_isometric_tile("f47ac10b-58cc-4372-a567-0e02b2c3d479")
+
+# Save tile image
+tile.image.pil_image().save("tile.png")
+
+Path Parameters
+
+    tile_id
+
+    Type: Tile Id
+    required
+
+Responses
+
+application/json
+401
+
+Invalid API token
+404
+
+Tile not found
+application/json
+423
+
+    Tile still processing
+
+Request Example for get/isometric-tiles/{tile_id}
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+headers = { 'Authorization': "Bearer YOUR_SECRET_TOKEN" }
+
+conn.request("GET", "/v2/isometric-tiles/%7Btile_id%7D", headers=headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "usage": {
+    "type": "usd",
+    "usd": 0.02
+  },
+  "image": {
+    "type": "base64",
+    "base64": "string",
+    "format": "png"
+  }
+}
+
+Successfully retrieved tile
+Account ​
+Account Operations
+
+    get/balance
+
+Get balance​
+
+Returns the current balance for your account.
+
+Using the Python client:
+
+import pixellab
+
+client = pixellab.Client(secret="YOUR_API_TOKEN")
+balance = client.get_balance()
+print(f"Current balance: {balance.usd} USD")
+
+Responses
+
+application/json
+401
+
+    Invalid API token
+
+Request Example for get/balance
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+headers = { 'Authorization': "Bearer YOUR_SECRET_TOKEN" }
+
+conn.request("GET", "/v2/balance", headers=headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "type": "usd",
+  "usd": 1
+}
+
+Successfully retrieved balance
+Character from template ​
+Character from template Operations
+
+    post/create-character-with-4-directions
+    post/create-character-with-8-directions
+    post/characters/animations
+    post/animate-character
+
+Create character with 4 directions​
+
+Generate a character or object facing 4 cardinal directions (south, west, east, north).
+
+This endpoint creates 4 separate rotation images plus a combined spritesheet in a 4x1 layout. Perfect for game development where you need character sprites facing all directions.
+
+Key Features:
+
+    Fixed 4-rotation layout (south, west, east, north)
+    Individual rotation images + combined spritesheet
+    Style customization (outline, shading, detail)
+    Color palette support
+    Character proportions customization
+    Optimized for game sprites and character assets
+
+Character Proportions:
+
+    Use preset proportions: chibi, cartoon, stylized, realistic_male, realistic_female, heroic
+    Or customize individual body proportions: head size, arm/leg length, shoulder/hip width
+    All characters use the advanced mannequin template with bone scaling
+
+Using the Python client:
+
+import pixellab
+
+client = pixellab.Client(secret="YOUR_API_TOKEN")
+
+# Example: With preset proportions
+response = client.generate_4_rotations(
+    description="futuristic robot warrior",
+    image_size=dict(width=96, height=96),
+    view="low_top_down",
+    proportions=dict(
+        type="preset",
+        name="heroic"
+    )
+)
+
+# Access individual images by direction
+south_facing = response.images["south"]
+west_facing = response.images["west"]
+east_facing = response.images["east"]
+north_facing = response.images["north"]
+
+Body
+required
+application/json
+
+Request model for 4-directions character creation endpoint
+
+    description
+
+Type: Description
+min length:  
+1
+max length:  
+2000
+required
+
+Description of the character or object to generate
+image_size
+Type: ImageSize
+required
+async_mode
+default: 
+true
+const:  
+true
+
+Process asynchronously (always true for character creation)
+color_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+detail
+Type: Detail
+default: 
+"medium detail" nullable
+
+Detail level (low, medium, high)
+force_colors
+Type: Force Colors
+default: 
+false nullable
+
+Force the use of colors from color_image
+isometric
+Type: Isometric
+default: 
+false nullable
+
+Generate in isometric view
+outline
+Type: Outline
+default: 
+"single color black outline" nullable
+
+Outline style (thin, medium, thick, none)
+output_type
+default: 
+"dict"
+const:  
+dict
+
+Output format (always dict for external API)
+proportions
+nullable
+
+Character body proportions (preset or custom values)
+seed
+Type: Seed
+min:  
+0 nullable
+
+Seed for reproducible generation
+shading
+
+    Type: Shading
+    default: 
+    "basic shading" nullable
+
+    Shading style (soft, hard, flat, none)
+
+Request model for 4-directions character creation endpoint
+Responses
+
+application/json
+401
+
+Invalid API token
+402
+
+Insufficient credits
+422
+
+Validation error
+429
+
+    Too many requests
+
+Request Example for post/create-character-with-4-directions
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+payload = "{\"description\":\"cute pixel art wizard with blue robes\",\"image_size\":{\"height\":64,\"width\":64}}"
+
+headers = {
+    'Content-Type': "application/json",
+    'Authorization': "Bearer YOUR_SECRET_TOKEN"
+}
+
+conn.request("POST", "/v2/create-character-with-4-directions", payload, headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "background_job_id": "123e4567-e89b-12d3-a456-426614174000",
+  "character_id": "456e7890-e89b-12d3-a456-426614174001",
+  "status": "processing"
+}
+
+Successfully generated 4-rotation images
+Create character with 8 directions​
+
+Generate a character or object facing 8 directions (all cardinal and diagonal directions).
+
+This endpoint creates 8 rotation images in a dictionary format for easy access by direction name. Perfect for detailed movement systems in games where smooth directional changes are important.
+
+The 8 Directions:
+
+    south (facing down)
+    south-east (diagonal down-right)
+    east (facing right)
+    north-east (diagonal up-right)
+    north (facing up)
+    north-west (diagonal up-left)
+    west (facing left)
+    south-west (diagonal down-left)
+
+Key Features:
+
+    Fixed 8-rotation layout in clockwise order starting from south
+    Returns dictionary of images by direction name
+    Style customization (outline, shading, detail)
+    Color palette support
+    Character proportions customization
+    Optimized for games requiring smooth directional movement
+
+Character Proportions:
+
+    Use preset proportions: chibi, cartoon, stylized, realistic_male, realistic_female, heroic
+    Or customize individual body proportions: head size, arm/leg length, shoulder/hip width
+    All characters use the advanced mannequin template with bone scaling
+
+Using the Python client:
+
+import pixellab
+
+client = pixellab.Client(secret="YOUR_API_TOKEN")
+
+# Example: With preset proportions
+response = client.generate_8_rotations(
+    description="futuristic robot warrior",
+    image_size=dict(width=96, height=96),
+    view="low top-down",
+    proportions=dict(
+        type="preset",
+        name="heroic"
+    )
+)
+
+# Access individual images by direction
+south_facing = response.images["south"]
+east_facing = response.images["east"]
+north_facing = response.images["north"]
+west_facing = response.images["west"]
+# And diagonal directions
+se_facing = response.images["south-east"]
+ne_facing = response.images["north-east"]
+nw_facing = response.images["north-west"]
+sw_facing = response.images["south-west"]
+
+Body
+required
+application/json
+
+Request model for 8-directions character creation endpoint
+
+    description
+
+Type: Description
+min length:  
+1
+max length:  
+2000
+required
+
+Description of the character or object to generate
+image_size
+Type: ImageSize
+required
+async_mode
+default: 
+true
+const:  
+true
+
+Process asynchronously (always true - no synchronous processing yet)
+color_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+detail
+Type: Detail
+default: 
+"medium detail" nullable
+
+Detail level (low, medium, high)
+force_colors
+Type: Force Colors
+default: 
+false nullable
+
+Force the use of colors from color_image
+isometric
+Type: Isometric
+default: 
+false nullable
+
+Generate in isometric view
+outline
+Type: Outline
+default: 
+"single color black outline" nullable
+
+Outline style (thin, medium, thick, none)
+output_type
+default: 
+"dict"
+const:  
+dict
+
+Output format (always dict for external API)
+proportions
+nullable
+
+Character body proportions (preset or custom values)
+seed
+Type: Seed
+min:  
+0 nullable
+
+Seed for reproducible generation
+shading
+
+    Type: Shading
+    default: 
+    "basic shading" nullable
+
+    Shading style (soft, hard, flat, none)
+
+Request model for 8-directions character creation endpoint
+Responses
+
+application/json
+401
+
+Invalid API token
+402
+
+Insufficient credits
+422
+
+Validation error
+429
+
+    Too many requests
+
+Request Example for post/create-character-with-8-directions
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+payload = "{\"description\":\"cute pixel art wizard with blue robes\",\"image_size\":{\"height\":64,\"width\":64}}"
+
+headers = {
+    'Content-Type': "application/json",
+    'Authorization': "Bearer YOUR_SECRET_TOKEN"
+}
+
+conn.request("POST", "/v2/create-character-with-8-directions", payload, headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "background_job_id": "123e4567-e89b-12d3-a456-426614174000",
+  "character_id": "456e7890-e89b-12d3-a456-426614174001",
+  "status": "processing"
+}
+
+Successfully generated 8-rotation images
+Create Character Animation​
+
+Animate an existing character (background processing)
+Body
+required
+application/json
+
+Request model for character animation endpoint
+
+    character_id
+
+Type: Character Id
+required
+
+ID of existing character to animate
+template_animation_id
+Type: Template Animation Idenum
+required
+
+Animation template ID (required). Available: backflip, breathing-idle, cross-punch, crouched-walking, crouching, drinking, falling-back-death, fight-stance-idle-8-frames, fireball, flying-kick, ...
+
+    backflip
+    breathing-idle
+    cross-punch
+    crouched-walking
+    crouching
+
+action_description
+Type: Action Description nullable
+
+Action description (e.g., 'walking', 'running', 'jumping'). If not provided, uses default description based on template_animation_id.
+animation_name
+Type: Animation Name nullable
+
+Name for this animation (defaults to action_description if not provided)
+async_mode
+default: 
+true
+const:  
+true
+
+Process in background (always true - no foreground processing yet)
+color_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+description
+Type: Description
+min length:  
+1
+max length:  
+2000 nullable
+
+Description of the character or object to animate (uses character's original if not specified)
+detail
+Type: Detail nullable
+
+Detail level (uses character's original if not specified)
+directions
+Type: array Directions[] nullable
+
+List of directions to animate (south, north, east, west, etc.). If None, animates all available directions.
+force_colors
+Type: Force Colors
+default: 
+false nullable
+
+Force the use of colors from color_image
+isometric
+Type: Isometric
+default: 
+false nullable
+
+Generate in isometric view
+outline
+
+    Type: Outline nullable
+
+    Outline style (uses character's original if not specified)
+
+Request model for character animation endpoint
+Responses
+
+application/json
+
+    application/json
+
+Request Example for post/characters/animations
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+payload = "{\"character_id\":\"123e4567-e89b-12d3-a456-426614174000\",\"directions\":[\"south\",\"north\"],\"template_animation_id\":\"walking-4-frames\"}"
+
+headers = {
+    'Content-Type': "application/json",
+    'Authorization': "Bearer YOUR_SECRET_TOKEN"
+}
+
+conn.request("POST", "/v2/characters/animations", payload, headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "background_job_ids": [
+    "123e4567-e89b-12d3-a456-426614174000",
+    "223e4567-e89b-12d3-a456-426614174001"
+  ],
+  "directions": [
+    "south",
+    "north"
+  ],
+  "status": "processing"
+}
+
+Successful Response
+Animate character with template​
+
+Animate an existing character with multiple frames showing movement or action.
+
+This endpoint creates animation sequences for characters that were previously created using the create-character-with-4-directions or create-character-with-8-directions endpoints.
+
+Key Features:
+
+    Animate existing characters by character_id
+    Support for multiple directions (or all character directions)
+    Flexible frame count (2-12 frames)
+    Template-based animations for consistent motion
+    Asynchronous processing for multiple directions
+    Automatic storage and organization
+
+Character Requirements:
+
+    Character must exist and belong to the authenticated user
+    Character must have been created with 4 or 8 directions
+    Animation will use the same template and settings as the character
+
+Direction Handling:
+
+    Multiple directions per request (specify via directions field)
+    If directions field is None/empty, animates all available directions
+    Each direction creates a separate background job
+    Returns list of job IDs (one per direction)
+
+AI Freedom Parameter:
+
+    ai_freedom controls how closely the AI follows the template (0=strict, 1000=creative)
+    Lower values produce more consistent animations
+    Higher values allow more creative variations
+
+Style Settings:
+
+    Uses the same style settings (outline, shading, detail) as the original character by default
+    Can override individual style settings in the request
+
+Frame Count:
+
+    Determined by the animation template (not configurable in request)
+    Typically 4-6 frames for most animations
+
+Image Size:
+
+    Uses the same image size as the original character
+    All frames have consistent dimensions
+    Stored in organized folder structure
+
+Pricing:
+
+    Cost scales with number of frames
+    Each direction is a separate request with separate cost
+
+Body
+required
+application/json
+
+Request model for character animation endpoint
+
+    character_id
+
+Type: Character Id
+required
+
+ID of existing character to animate
+template_animation_id
+Type: Template Animation Idenum
+required
+
+Animation template ID (required). Available: backflip, breathing-idle, cross-punch, crouched-walking, crouching, drinking, falling-back-death, fight-stance-idle-8-frames, fireball, flying-kick, ...
+
+    backflip
+    breathing-idle
+    cross-punch
+    crouched-walking
+    crouching
+
+action_description
+Type: Action Description nullable
+
+Action description (e.g., 'walking', 'running', 'jumping'). If not provided, uses default description based on template_animation_id.
+animation_name
+Type: Animation Name nullable
+
+Name for this animation (defaults to action_description if not provided)
+async_mode
+default: 
+true
+const:  
+true
+
+Process in background (always true - no foreground processing yet)
+color_image
+Type: Base64Image nullable
+
+A base64 encoded image.
+
+Attributes: type (Literal["base64"]): Always "base64" to indicate the image encoding type base64 (str): The base64 encoded image data format (str): The image format (e.g., "png", "jpeg")
+description
+Type: Description
+min length:  
+1
+max length:  
+2000 nullable
+
+Description of the character or object to animate (uses character's original if not specified)
+detail
+Type: Detail nullable
+
+Detail level (uses character's original if not specified)
+directions
+Type: array Directions[] nullable
+
+List of directions to animate (south, north, east, west, etc.). If None, animates all available directions.
+force_colors
+Type: Force Colors
+default: 
+false nullable
+
+Force the use of colors from color_image
+isometric
+Type: Isometric
+default: 
+false nullable
+
+Generate in isometric view
+outline
+
+    Type: Outline nullable
+
+    Outline style (uses character's original if not specified)
+
+Request model for character animation endpoint
+Responses
+
+application/json
+401
+
+Invalid API token
+402
+
+Insufficient credits
+404
+
+Character not found
+422
+
+Validation error
+429
+
+    Too many requests
+
+Request Example for post/animate-character
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+payload = "{\"character_id\":\"123e4567-e89b-12d3-a456-426614174000\",\"directions\":[\"south\",\"north\"],\"template_animation_id\":\"walking-4-frames\"}"
+
+headers = {
+    'Content-Type': "application/json",
+    'Authorization': "Bearer YOUR_SECRET_TOKEN"
+}
+
+conn.request("POST", "/v2/animate-character", payload, headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "background_job_ids": [
+    "123e4567-e89b-12d3-a456-426614174000",
+    "223e4567-e89b-12d3-a456-426614174001"
+  ],
+  "directions": [
+    "south",
+    "north"
+  ],
+  "status": "processing"
+}
+
+Successfully started character animation in background
+Character Management ​
+Character Management Operations
+
+    get/characters
+    get/characters/{character_id}
+    delete/characters/{character_id}
+    get/characters/{character_id}/zip
+
+List user's characters​
+
+List all characters created by the authenticated user.
+
+This endpoint returns a paginated list of all characters you've created using the create-character-with-4-directions or create-character-with-8-directions endpoints.
+
+Features:
+
+    Pagination support with limit and offset parameters
+    Animation count for each character
+    Preview URLs for quick character identification
+    Complete character metadata
+
+Authentication: Requires a valid API token in the Authorization header.
+
+Response includes:
+
+    Character basic info (name, prompt, size, directions)
+    Creation timestamp and template used
+    Number of animations created for each character
+    Preview URL for the south-facing rotation
+
+Pagination:
+
+    Use limit to control how many characters to return (1-100)
+    Use offset to skip characters for pagination
+    Total count is included in response for pagination UI
+
+Query Parameters
+
+    limit
+
+Type: Limit
+min:  
+1
+max:  
+100
+default: 
+50
+
+Maximum number of characters to return
+offset
+
+    Type: Offset
+    min:  
+    0
+    default: 
+    0
+
+    Number of characters to skip
+
+Responses
+
+application/json
+401
+
+Invalid API token
+422
+
+Invalid pagination parameters
+429
+
+    Too many requests
+
+Request Example for get/characters
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+headers = { 'Authorization': "Bearer YOUR_SECRET_TOKEN" }
+
+conn.request("GET", "/v2/characters", headers=headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "characters": [
+    {
+      "animation_count": 5,
+      "created_at": "2024-01-15T10:30:00Z",
+      "directions": 8,
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "name": "Fire Wizard",
+      "preview_url": "https://kvaopnrvdofzljhsyuul.supabase.co/storage/v1/object/public/pixellab-characters/user-id/123e4567-e89b-12d3-a456-426614174000/rotations/south.png",
+      "prompt": "A powerful wizard with fire magic",
+      "size": {
+        "height": 32,
+        "width": 32
+      },
+      "template_id": "boy-bipedal-27x43",
+      "view": "low top-down"
+    }
+  ],
+  "total": 1,
+  "usage": {
+    "type": "usd",
+    "usd": 0
+  }
+}
+
+Successfully retrieved character list
+Get character details​
+
+Get detailed information about a specific character.
+
+This endpoint returns complete character information including all rotation image URLs, generation settings, and metadata.
+
+Features:
+
+    Complete character information and settings
+    URLs for all rotation images (4 or 8 directions)
+    Animation count and template information
+    Generation parameters used during creation
+
+Authentication: Requires a valid API token. You can only access characters you created.
+
+Response includes:
+
+    Basic character info (name, prompt, size, directions)
+    All rotation image URLs (publicly accessible)
+    Style settings and generation parameters
+    Template information and view settings
+    Animation count for this character
+
+URL Format: All rotation URLs follow the pattern: https://supabase.pixellab.ai/storage/v1/object/public/pixellab-characters/{user_id}/{character_id}/rotations/{direction}.png
+Path Parameters
+
+    character_id
+
+    Type: Character Id
+    required
+
+Responses
+
+application/json
+401
+
+Invalid API token
+403
+
+Character belongs to another user
+404
+
+Character not found
+application/json
+429
+
+    Too many requests
+
+Request Example for get/characters/{character_id}
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+headers = { 'Authorization': "Bearer YOUR_SECRET_TOKEN" }
+
+conn.request("GET", "/v2/characters/%7Bcharacter_id%7D", headers=headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "ai_freedom": 600,
+  "animation_count": 5,
+  "created_at": "2024-01-15T10:30:00Z",
+  "directions": 8,
+  "guidance": 7.5,
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "name": "Fire Wizard",
+  "prompt": "A powerful wizard with fire magic",
+  "rotation_urls": {
+    "east": "https://supabase.pixellab.ai/storage/v1/object/public/pixellab-characters/user-id/char-id/rotations/east.png",
+    "north": "https://supabase.pixellab.ai/storage/v1/object/public/pixellab-characters/user-id/char-id/rotations/north.png",
+    "north-east": "https://supabase.pixellab.ai/storage/v1/object/public/pixellab-characters/user-id/char-id/rotations/north-east.png",
+    "north-west": "https://supabase.pixellab.ai/storage/v1/object/public/pixellab-characters/user-id/char-id/rotations/north-west.png",
+    "south": "https://supabase.pixellab.ai/storage/v1/object/public/pixellab-characters/user-id/char-id/rotations/south.png",
+    "south-east": "https://supabase.pixellab.ai/storage/v1/object/public/pixellab-characters/user-id/char-id/rotations/south-east.png",
+    "south-west": "https://supabase.pixellab.ai/storage/v1/object/public/pixellab-characters/user-id/char-id/rotations/south-west.png",
+    "west": "https://supabase.pixellab.ai/storage/v1/object/public/pixellab-characters/user-id/char-id/rotations/west.png"
+  },
+  "size": {
+    "height": 32,
+    "width": 32
+  },
+  "style_settings": {
+    "detail": "minimal",
+    "outline": "thin",
+    "shading": "flat",
+    "style": "cute"
+  },
+  "template_id": "boy-bipedal-27x43",
+  "view": "low top-down"
+}
+
+Successfully retrieved character details
+Delete a character and all associated data​
+
+Delete a character (v2 API for external customers).
+
+Uses the same internal logic as JWT and MCP endpoints, providing fast storage deletion by using service_role internally (avoiding the slow storage.search_legacy_v1 function).
+Path Parameters
+
+    character_id
+
+    Type: Character Id
+    required
+
+Responses
+
+application/json
+
+    application/json
+
+Request Example for delete/characters/{character_id}
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+headers = { 'Authorization': "Bearer YOUR_SECRET_TOKEN" }
+
+conn.request("DELETE", "/v2/characters/%7Bcharacter_id%7D", headers=headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "usage": {
+    "type": "usd",
+    "usd": 0.02
+  },
+  "success": true,
+  "character_id": "string",
+  "files_deleted": 1,
+  "animations_deleted": 1,
+  "error": "string"
+}
+
+Successful Response
+Export character as ZIP​
+
+Download a character with all animations as a ZIP file.
+
+This endpoint creates a ZIP file containing all rotation images, animation frames, and metadata for a character. Perfect for using characters in external tools, game engines, or archiving your creations.
+
+ZIP Contents:
+
+    rotations/ - All character rotation images (4 or 8 directions)
+    animations/ - All animation frames organized by animation type and direction
+    metadata.json - Complete character information with keypoints for all frames
+
+Collision Detection: Includes keypoints for all frames + PNG transparency for pixel-perfect collision detection.
+
+File Structure:
+
+character_name.zip
+├── rotations/
+│   ├── south.png
+│   ├── west.png
+│   ├── east.png
+│   ├── north.png
+│   └── [8-direction files if applicable]
+├── animations/
+│   └── {animation_type}/
+│       └── {direction}/
+│           ├── frame_000.png
+│           ├── frame_001.png
+│           └── ...
+└── metadata.json
+
+Metadata Structure: The metadata.json includes:
+
+    Character information (name, prompt, size, template)
+    File organization structure
+    Keypoints data for template-based characters
+    Export version and timestamp
+
+Keypoints Data: For characters created with templates, keypoints are included with:
+
+    x,y coordinates for each body part
+    Labels (nose, left_arm, etc.)
+    Scaled to character's actual size
+    Available for all rotations and animation frames
+
+Authentication: No authentication required - the random character ID serves as the access key.
+
+File Size: ZIP files are uncompressed for faster generation and compatibility. File size depends on character image size and number of animations.
+
+Status Codes:
+
+    200: ZIP file ready for download
+    423: Character or animations still being generated (check status later)
+    404: Character not found
+
+Path Parameters
+
+    character_id
+
+    Type: Character Id
+    required
+
+Responses
+
+404
+
+Character not found
+application/json
+423
+
+    Character or animations still being generated
+
+Request Example for get/characters/{character_id}/zip
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+conn.request("GET", "/v2/characters/%7Bcharacter_id%7D/zip")
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+null
+
+ZIP file download containing character data
+Background Jobs ​
+Background Jobs Operations
+
+    get/background-jobs/{job_id}
+
+Get background job status​
+
+Check the status and results of a background job.
+
+This endpoint allows you to monitor the progress of background operations like character creation and animation generation. Background jobs are used for expensive operations that take time to complete.
+
+Job Statuses:
+
+    processing - Job is currently running
+    completed - Job finished successfully
+    failed - Job encountered an error
+
+Usage Pattern:
+
+    Create a character or animation (returns
+    background_job_id
+    )
+    Poll this endpoint periodically to check status
+    When status is
+    completed
+    , access results in
+    last_response
+
+Response Data:
+
+    For character creation: character_id, directions_count, character info
+    For animations: animation_id, frame_count, animation details
+    Storage information and file organization details
+
+Authentication: Requires a valid API token. You can only access jobs you created.
+
+Error Handling:
+
+    404: Job not found or doesn't belong to you
+    Jobs are automatically cleaned up after completion
+
+Polling Recommendations:
+
+    Poll every 5-10 seconds while status is processing
+    Stop polling once status is completed or failed
+    Character creation typically takes 30-60 seconds
+    Animations may take longer depending on frame count and directions
+
+Path Parameters
+
+    job_id
+
+    Type: Job Id
+    required
+
+Responses
+
+application/json
+401
+
+Invalid API token
+404
+
+Job not found or doesn't belong to user
+application/json
+429
+
+    Too many requests
+
+Request Example for get/background-jobs/{job_id}
+
+import http.client
+
+conn = http.client.HTTPSConnection("api.pixellab.ai")
+
+headers = { 'Authorization': "Bearer YOUR_SECRET_TOKEN" }
+
+conn.request("GET", "/v2/background-jobs/%7Bjob_id%7D", headers=headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
+
+{
+  "created_at": "2024-01-15T10:30:00Z",
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "last_response": {
+    "character_id": "456e7890-e89b-12d3-a456-426614174001",
+    "character_name": "Fire Wizard",
+    "character_prompt": "A powerful wizard with fire magic",
+    "directions_count": 4,
+    "directions_type": "4-directions",
+    "saved_to_storage": true,
+    "uploaded_directions": [
+      "south",
+      "west",
+      "east",
+      "north"
+    ]
+  },
+  "status": "completed",
+  "usage": {
+    "type": "usd",
+    "usd": 0
+  }
+}
+
+Successfully retrieved job status
+Documentation ​
+Documentation Operations
+
+    get/llms.txt
+
+Get LLM-friendly API documentation​
+
+Returns API documentation formatted for Large Language Models (LLMs).
+
+This endpoint provides a text-based overview of all v2 API endpoints,
+formatted in a way that's easily parseable by AI assistants like Claude,
+GPT-4, and other LLMs.
+
+## Usage
+
+You can reference this documentation in AI prompts:
+- `@api.pixellab.ai/v2/llms.txt` in Claude
+- Direct URL access for other tools
+
+## Format
+
+The documentation includes:
+- Endpoint paths and methods
+- Required and optional parameters
+- Authentication requirements
+- Response formats
+- Usage examples
+
+## Auto-Generation
+
+This documentation is auto-generated from the OpenAPI specification,
+ensuring it stays in sync with the actual API implementation.
+
+Responses

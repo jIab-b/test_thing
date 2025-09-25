@@ -19,6 +19,7 @@
       <option>red spawn</option>
       <option>health refill</option>
       <option>attack refill</option>
+      <option>enemy monument</option>
       <option>delete</option>
     </select>
     <button id="zoomIn">+</button>
@@ -38,10 +39,12 @@
     'red spawn': new Map(),
     'health refill': new Map(),
     'attack refill': new Map(),
+    'enemy monument': new Map(),
   };
   const MAP_NAME = 'map_01';
   const MIN_TILE_PX = 28;
   let saveTimer = null;
+  let dpr = Math.max(1, window.devicePixelRatio || 1);
 
   function key(x,y){ return `${x},${y}` }
   function parseKey(k){ const [x,y] = k.split(',').map(Number); return [x,y] }
@@ -50,7 +53,12 @@
     const top = document.getElementById('topbar');
     const w = window.innerWidth;
     const h = window.innerHeight - top.offsetHeight;
-    canvas.width = w; canvas.height = h;
+    dpr = Math.max(1, window.devicePixelRatio || 1);
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     draw();
   }
   window.addEventListener('resize', resize); resize();
@@ -73,6 +81,8 @@
   }
 
   function fitToExtents(){
+    const cssW = canvas.width / dpr;
+    const cssH = canvas.height / dpr;
     const m = computeExtents();
     const pad = 5;
     const left = Math.max(0, m.minX - pad) * tile;
@@ -81,14 +91,14 @@
     const bottom = (m.maxY + 1 + pad) * tile;
     const areaW = right - left;
     const areaH = bottom - top;
-    const zx = canvas.width / Math.max(areaW, 1);
-    const zy = canvas.height / Math.max(areaH, 1);
+    const zx = cssW / Math.max(areaW, 1);
+    const zy = cssH / Math.max(areaH, 1);
     let candidate = Math.min(zx, zy);
     const minByTile = MIN_TILE_PX / Math.max(tile, 1);
     if (m.empty) candidate = Math.max(candidate, 1.25);
     zoom = Math.max(0.25, Math.min(8, Math.max(candidate, minByTile)));
-    camX = left + areaW/2 - canvas.width/(2*zoom);
-    camY = top + areaH/2 - canvas.height/(2*zoom);
+    camX = left + areaW/2 - cssW/(2*zoom);
+    camY = top + areaH/2 - cssH/(2*zoom);
     draw();
   }
 
@@ -104,49 +114,62 @@
   }
 
   function draw(){
-    ctx.setTransform(1,0,0,1,0,0);
+    const cssW = canvas.width / dpr;
+    const cssH = canvas.height / dpr;
+    ctx.clearRect(0, 0, cssW, cssH);
     ctx.fillStyle = '#e9edf5';
-    ctx.fillRect(0,0,canvas.width, canvas.height);
+    ctx.fillRect(0,0,cssW, cssH);
+
+    const step = Math.max(1, Math.round(tile * zoom));
 
     const blockCol = '#c8c8c8';
     const spawnBlue = '#5aa6ff';
     const spawnRed = '#ff6b6b';
     const healthCol = '#6bff90';
     const attackCol = '#ffb86b';
+    const monumentCol = '#8b5cf6';
 
     for (const [k] of layers['block (coll)']){
       const [x,y] = parseKey(k);
       const [sx, sy] = worldToScreen(x,y);
-      ctx.fillStyle = blockCol; ctx.fillRect(sx, sy, tile*zoom, tile*zoom);
+      ctx.fillStyle = blockCol; ctx.fillRect(sx, sy, step, step);
     }
     for (const [k] of layers['blue spawn']){
       const [x,y] = parseKey(k); const [sx, sy] = worldToScreen(x,y);
-      ctx.fillStyle = spawnBlue; ctx.fillRect(sx, sy, tile*zoom, tile*zoom);
+      ctx.fillStyle = spawnBlue; ctx.fillRect(sx, sy, step, step);
     }
     for (const [k] of layers['red spawn']){
       const [x,y] = parseKey(k); const [sx, sy] = worldToScreen(x,y);
-      ctx.fillStyle = spawnRed; ctx.fillRect(sx, sy, tile*zoom, tile*zoom);
+      ctx.fillStyle = spawnRed; ctx.fillRect(sx, sy, step, step);
     }
+    const s2 = Math.max(1, Math.round(step * 0.5));
+    const o = Math.round((step - s2) / 2);
     for (const [k] of layers['health refill']){
       const [x,y] = parseKey(k); const [sx, sy] = worldToScreen(x,y);
-      ctx.fillStyle = healthCol; ctx.fillRect(sx + tile*zoom*0.25, sy + tile*zoom*0.25, tile*zoom*0.5, tile*zoom*0.5);
+      ctx.fillStyle = healthCol; ctx.fillRect(sx + o, sy + o, s2, s2);
     }
     for (const [k] of layers['attack refill']){
       const [x,y] = parseKey(k); const [sx, sy] = worldToScreen(x,y);
-      ctx.fillStyle = attackCol; ctx.fillRect(sx + tile*zoom*0.25, sy + tile*zoom*0.25, tile*zoom*0.5, tile*zoom*0.5);
+      ctx.fillStyle = attackCol; ctx.fillRect(sx + o, sy + o, s2, s2);
+    }
+    for (const [k] of layers['enemy monument']){
+      const [x,y] = parseKey(k); const [sx, sy] = worldToScreen(x,y);
+      ctx.fillStyle = monumentCol; ctx.fillRect(sx, sy, step, step);
+      const barW = Math.max(10, Math.round(step * 0.9));
+      const barH = Math.max(3, Math.round(step * 0.18));
+      const bx = sx + Math.round((step - barW) / 2);
+      const by = sy - barH - 2;
+      ctx.fillStyle = '#e3e7ef'; ctx.fillRect(bx, by, barW, barH);
+      ctx.fillStyle = '#8b5cf6'; ctx.fillRect(bx, by, barW, barH);
+      ctx.strokeStyle = '#6d7280'; ctx.lineWidth = 1; ctx.strokeRect(bx, by, barW, barH);
     }
 
-    const step = Math.max(1, Math.floor(tile*zoom));
-    const x0 = (-Math.floor(camX * zoom)) % step;
-    const y0 = (-Math.floor(camY * zoom)) % step;
+    const xoff = ((-Math.round(camX * zoom)) % step + step) % step;
+    const yoff = ((-Math.round(camY * zoom)) % step + step) % step;
     ctx.strokeStyle = '#cfd6e2'; ctx.lineWidth = 1;
     ctx.beginPath();
-    for (let x = x0; x < canvas.width; x += step){
-      ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height);
-    }
-    for (let y = y0; y < canvas.height; y += step){
-      ctx.moveTo(0, y); ctx.lineTo(canvas.width, y);
-    }
+    for (let x = xoff; x < cssW; x += step){ ctx.moveTo(x, 0); ctx.lineTo(x, cssH); }
+    for (let y = yoff; y < cssH; y += step){ ctx.moveTo(0, y); ctx.lineTo(cssW, y); }
     ctx.stroke();
   }
 
@@ -159,7 +182,9 @@
     if (e.button === 2 || e.shiftKey){
       isPanning = true; panStart = [e.clientX, e.clientY]; camStart = [camX, camY]; return;
     }
-    const [cx, cy] = screenToCell(e.offsetX, e.offsetY);
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
+    const [cx, cy] = screenToCell(mx, my);
     const mode = document.getElementById('mode').value;
     if (e.button === 0){
       if (mode === 'delete'){
@@ -179,7 +204,9 @@
       return;
     }
     if (e.buttons & 1){
-      const [cx, cy] = screenToCell(e.offsetX, e.offsetY);
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
+      const [cx, cy] = screenToCell(mx, my);
       const mode = document.getElementById('mode').value;
       if (mode === 'delete'){
         for (const m of Object.values(layers)) m.delete(key(cx,cy));
@@ -192,7 +219,8 @@
   });
   canvas.addEventListener('wheel', (e)=>{
     e.preventDefault();
-    const mx = e.offsetX, my = e.offsetY;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
     const wx = camX + mx/Math.max(zoom, 1e-6);
     const wy = camY + my/Math.max(zoom, 1e-6);
     const factor = e.deltaY < 0 ? 1.15 : 1/1.15;

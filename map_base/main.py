@@ -32,7 +32,7 @@ def index():
 async def load_map(name: str):
     path = os.path.join(DATA_DIR, f"{name}.json")
     if not os.path.exists(path):
-        return {"version": 2, "tile_size": 32, "grid_width": 120, "grid_height": 68, "layers": {"block (coll)": [], "blue spawn": [], "red spawn": [], "health refill": [], "attack refill": []}}
+        return {"version": 2, "tile_size": 32, "grid_width": 120, "grid_height": 68, "layers": {"block (coll)": [], "blue spawn": [], "red spawn": [], "health refill": [], "attack refill": [], "enemy monument": []}}
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 

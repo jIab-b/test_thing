@@ -19,11 +19,31 @@ static func import_map(parent: Node, json_path: String) -> void:
             gh = int(data.get("grid_height", gh))
             blocks = data.get("visual_blocks", []) if data.has("visual_blocks") else []
             pickups = data.get("pickups", []) if data.has("pickups") else []
+    var layers_dict: Dictionary = {} if data == null or typeof(data) != TYPE_DICTIONARY else data.get("layers", {})
     var width_px := gw * tile_size
     var height_px := gh * tile_size
     parent.set_meta("map_size_px", Vector2(width_px, height_px))
     parent.set_meta("map_grid", Vector2i(gw, gh))
     parent.set_meta("tile_size", tile_size)
+    var blue_spawn_px: Array = []
+    var red_spawn_px: Array = []
+    if typeof(layers_dict) == TYPE_DICTIONARY:
+        for p in layers_dict.get("blue spawn", []):
+            if p is Array and p.size() >= 2:
+                var bx := int(p[0])
+                var by := int(p[1])
+                blue_spawn_px.append(Vector2((bx + 0.5) * tile_size, (by + 0.5) * tile_size))
+        for p in layers_dict.get("red spawn", []):
+            if p is Array and p.size() >= 2:
+                var rx := int(p[0])
+                var ry := int(p[1])
+                red_spawn_px.append(Vector2((rx + 0.5) * tile_size, (ry + 0.5) * tile_size))
+    parent.set_meta("spawns_blue", blue_spawn_px)
+    parent.set_meta("spawns_red", red_spawn_px)
+    # ensure at least one blue spawn at center if none provided
+    if blue_spawn_px.size() == 0:
+        blue_spawn_px.append(Vector2(width_px * 0.5, height_px * 0.5))
+        parent.set_meta("spawns_blue", blue_spawn_px)
 
     for n in ["Background", "Bounds"]:
         var old := parent.get_node_or_null(n)
@@ -79,7 +99,13 @@ static func import_map(parent: Node, json_path: String) -> void:
     var img := Image.create(tile_size, tile_size, false, Image.FORMAT_RGBA8)
     img.fill(Color(0.45, 0.45, 0.45, 1.0))
     var tex := ImageTexture.create_from_image(img)
-    for p in blocks:
+    var combined_blocks: Array = []
+    combined_blocks.append_array(blocks)
+    if typeof(layers_dict) == TYPE_DICTIONARY:
+        for bp in layers_dict.get("block (coll)", []):
+            if bp is Array and bp.size() >= 2:
+                combined_blocks.append([int(bp[0]), int(bp[1])])
+    for p in combined_blocks:
         if p is Array and len(p) == 2:
             var x := int(p[0])
             var y := int(p[1])
@@ -127,11 +153,48 @@ static func import_map(parent: Node, json_path: String) -> void:
                         s.position = Vector2((tx + 0.5) * tile_size, (ty + 0.5) * tile_size)
                         tiles_node.add_child(s)
 
-    var center_pos := Vector2(width_px * 0.4, height_px * 0.4)
-    var timer := parent.get_tree().create_timer(0.01)
-    timer.timeout.connect(func():
-        var player := parent.get_tree().get_first_node_in_group("player")
-        if player != null and player is Node2D:
-            player.global_position = center_pos
-    )
+    # Spawn pickups for refills
+    var pickups_node := parent.get_node_or_null("Pickups")
+    if pickups_node == null:
+        pickups_node = Node2D.new()
+        pickups_node.name = "Pickups"
+        parent.add_child(pickups_node)
+    var pickup_scene: PackedScene = preload("res://scenes/Pickup.tscn")
+    if typeof(layers_dict) == TYPE_DICTIONARY and pickup_scene != null:
+        for p in layers_dict.get("attack refill", []):
+            if p is Array and p.size() >= 2:
+                var px := int(p[0])
+                var py := int(p[1])
+                var node := pickup_scene.instantiate()
+                node.kind = "attack"
+                node.global_position = Vector2((px + 0.5) * tile_size, (py + 0.5) * tile_size)
+                pickups_node.add_child(node)
+        for p in layers_dict.get("health refill", []):
+            if p is Array and p.size() >= 2:
+                var hx := int(p[0])
+                var hy := int(p[1])
+                var node2 := pickup_scene.instantiate()
+                node2.kind = "health"
+                node2.global_position = Vector2((hx + 0.5) * tile_size, (hy + 0.5) * tile_size)
+                pickups_node.add_child(node2)
+
+    var old_mon := parent.get_node_or_null("EnemyMonuments")
+    if old_mon != null:
+        old_mon.queue_free()
+    var monuments_node := Node2D.new()
+    monuments_node.name = "EnemyMonuments"
+    parent.add_child(monuments_node)
+    var enemy_mon_scene: PackedScene = preload("res://scenes/EnemyMonument.tscn")
+    var monuments: Array = []
+    if typeof(layers_dict) == TYPE_DICTIONARY:
+        monuments = layers_dict.get("enemy monument", [])
+    if enemy_mon_scene != null:
+        for p in monuments:
+            if p is Array and p.size() >= 2:
+                var mx := int(p[0])
+                var my := int(p[1])
+                var m := enemy_mon_scene.instantiate()
+                m.position = Vector2((mx + 0.5) * tile_size, (my + 0.5) * tile_size)
+                m.add_to_group("enemy_monument")
+                monuments_node.add_child(m)
 

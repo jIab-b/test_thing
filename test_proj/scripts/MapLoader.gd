@@ -22,11 +22,15 @@ func _ready() -> void:
                 chosen = _map_path_from_number(m2)
     MapImporterRef.import_map(self, chosen)
     await get_tree().process_frame
-    var size: Vector2 = get_meta("map_size_px", Vector2.ZERO)
-    if size != Vector2.ZERO:
-        var player := get_tree().get_first_node_in_group("player")
-        if player != null and player is Node2D:
-            player.global_position = size * 0.5
+    var blues: Array = get_meta("spawns_blue", [])
+    var player := get_tree().get_first_node_in_group("player")
+    if player != null and player is Node2D:
+        if blues.size() > 0 and blues[0] is Vector2:
+            player.global_position = blues[0]
+        else:
+            var size: Vector2 = get_meta("map_size_px", Vector2.ZERO)
+            if size != Vector2.ZERO:
+                player.global_position = size * 0.5
 
 func _map_path_from_number(num_str: String) -> String:
     var digits := num_str.strip_edges()

@@ -6,6 +6,11 @@ extends Node
 var time_since_spawn: float = 0.0
 var difficulty_time: float = 0.0
 var rng: RandomNumberGenerator = null
+var spawn_rate_multiplier: float = 1.0
+var boost_time_left: float = 0.0
+
+func get_base_interval() -> float:
+    return spawn_interval
 
 func _ready() -> void:
     rng = RandomNumberGenerator.new()
@@ -21,7 +26,11 @@ func _spawn_initial() -> void:
 func _process(delta: float) -> void:
     time_since_spawn += delta
     difficulty_time += delta
-    var interval: float = max(0.2, spawn_interval - difficulty_time * 0.01)
+    if boost_time_left > 0.0:
+        boost_time_left -= delta
+        if boost_time_left <= 0.0:
+            spawn_rate_multiplier = 1.0
+    var interval: float = max(0.2, (spawn_interval - difficulty_time * 0.01)) / max(0.1, spawn_rate_multiplier)
     if time_since_spawn >= interval:
         time_since_spawn = 0.0
         _spawn_enemy()
@@ -29,6 +38,16 @@ func _process(delta: float) -> void:
 func _spawn_enemy() -> void:
     if enemy_scene == null:
         return
+    var reds: Array = get_parent().get_meta("spawns_red", [])
+    if reds is Array and reds.size() > 0:
+        var idx := int(floor(rng.randf() * reds.size()))
+        idx = clamp(idx, 0, reds.size() - 1)
+        var posv = reds[idx]
+        if posv is Vector2:
+            var e1 := enemy_scene.instantiate()
+            e1.global_position = posv
+            get_parent().add_child(e1)
+            return
     var player := get_tree().get_first_node_in_group("player")
     if player == null:
         return
@@ -48,4 +67,8 @@ func _spawn_enemy() -> void:
             e.global_position = pos
             get_parent().add_child(e)
             return
+
+func apply_spawn_rate_boost(mult: float, duration: float = 10.0) -> void:
+    spawn_rate_multiplier = max(1.0, mult)
+    boost_time_left = max(boost_time_left, duration)
 

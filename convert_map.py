@@ -21,22 +21,35 @@ def convert(src_path, dst_path):
     tile = int(src.get("tile_size", 32))
     gw = int(src.get("grid_width", 50))
     gh = int(src.get("grid_height", 30))
-    layers = src.get("layers", {})
+    layers = src.get("layers", {}) or {}
+    def norm_triplets(arr):
+        out = []
+        for p in arr or []:
+            if isinstance(p, list):
+                if len(p) >= 3:
+                    out.append([int(p[0]), int(p[1]), int(p[2])])
+                elif len(p) == 2:
+                    out.append([int(p[0]), int(p[1]), 1])
+        return sorted(out)
     out = {
-        "version": 1,
+        "version": 2,
         "tile_size": tile,
         "grid_width": gw,
         "grid_height": gh,
-        "visual_blocks": sorted([[x, y] for [x, y, t] in layers.get("blocks", [])]),
-        "collision_layer_1": sorted([[x, y] for [x, y] in layers.get("collision_layer_1", [])]),
-        "collision_layer_2": sorted([[x, y] for [x, y] in layers.get("collision_layer_2", [])]),
-        "pickups": sorted([[x, y, t] for [x, y, t] in layers.get("pickups", [])]),
+        "layers": {
+            "block (coll)": norm_triplets(layers.get("block (coll)")),
+            "blue spawn": norm_triplets(layers.get("blue spawn")),
+            "red spawn": norm_triplets(layers.get("red spawn")),
+            "health refill": norm_triplets(layers.get("health refill")),
+            "attack refill": norm_triplets(layers.get("attack refill")),
+            "enemy monument": norm_triplets(layers.get("enemy monument")),
+        },
     }
     save_json(dst_path, out)
 
 
 def resolve_src_path(src_arg: str | None, id_arg: str | None) -> str:
-    saved_dir = os.path.join("saved_maps")
+    saved_dir = os.path.join("map_base", "data")
     if id_arg:
         ident = str(id_arg)
         if ident.isdigit():
@@ -75,13 +88,25 @@ def resolve_src_path(src_arg: str | None, id_arg: str | None) -> str:
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("src", nargs="?", help="path, digits like 01 or 1283, or glob like saved_maps/map_*.json")
+    p.add_argument("src", nargs="?", help="path, digits like 01 or 1283, or glob like map_base/data/map_*.json")
     p.add_argument("--id", "-i", help="two-digit or four-digit map id like 01 or 1283")
-    p.add_argument("--out", "-o", default=os.path.join("test_proj", "maps", "map.json"))
+    p.add_argument("--out", "-o", default=None)
     args = p.parse_args()
     src_path = resolve_src_path(args.src, args.id)
-    convert(src_path, args.out)
-    print(f"Converted {src_path} -> {args.out}")
+    if args.out:
+        dst = args.out
+    else:
+        ident = None
+        if args.id and str(args.id).isdigit():
+            ident = str(args.id)
+        elif args.src and os.path.basename(str(args.src)).split(".")[0].isdigit():
+            ident = os.path.basename(str(args.src)).split(".")[0]
+        if ident is None:
+            ident = "01"
+        ident2 = ident[-2:].zfill(2)
+        dst = os.path.join("test_proj", "maps", f"map_{ident2}.json")
+    convert(src_path, dst)
+    print(f"Converted {src_path} -> {dst}")
 
 
 if __name__ == "__main__":

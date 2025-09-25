@@ -4,6 +4,7 @@ extends Area2D
 @export var duration: float = 0.18
 @export var knockback: float = 140.0
 @export var hit_mask: int = 8
+@export var from_enemy: bool = false
 
 var elapsed: float = 0.0
 var hit: Dictionary = {}
@@ -37,6 +38,10 @@ func _on_body_entered(body: Node) -> void:
     if hit.has(body):
         return
     hit[body] = true
+    if from_enemy and body.is_in_group("player") and body.has_method("attempt_deflect"):
+        if body.attempt_deflect(self):
+            queue_free()
+            return
     if body.has_method("take_damage"):
         body.take_damage(damage)
     if body is CharacterBody2D:

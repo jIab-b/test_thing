@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[sub_resource type="RectangleShape2D" id="101"]
+size = Vector2(26, 26)
+
+[node name="EnemyMonument" type="StaticBody2D"]
+collision_layer = 65536
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("101")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+

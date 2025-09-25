@@ -1,6 +1,7 @@
 Param(
     [switch]$Run,
     [switch]$Editor,
+    [string]$MapNumber,
     [string[]]$ExtraArgs
 )
 $ErrorActionPreference = "Stop"
@@ -14,6 +15,7 @@ $mode = "Run"
 if ($Editor) { $mode = "Editor" }
 if ($Run) { $mode = "Run" }
 if ($mode -eq "Editor") { $argsList += "--editor" }
+if ($MapNumber) { $argsList += @("--", "--map=$MapNumber") }
 if ($ExtraArgs) { $argsList += $ExtraArgs }
 Start-Process -FilePath $godotExe -ArgumentList $argsList
 

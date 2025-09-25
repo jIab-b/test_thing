@@ -60,16 +60,22 @@ def main():
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("consolas", 16)
 
-    blocks = {}
+    blocks_layers = [{}, {}, {}, {}]
     pickups = {}
     col1 = set()
     col2 = set()
 
     if data:
         layers = data.get("layers", {})
-        for p in layers.get("blocks", []):
-            if isinstance(p, list) and len(p) >= 3:
-                blocks[(int(p[0]), int(p[1]))] = int(p[2])
+        if any(k in layers for k in ("blocks_l1", "blocks_l2", "blocks_l3", "blocks_l4")):
+            for li, key in enumerate(["blocks_l1", "blocks_l2", "blocks_l3", "blocks_l4"]):
+                for p in layers.get(key, []):
+                    if isinstance(p, list) and len(p) >= 3:
+                        blocks_layers[li][(int(p[0]), int(p[1]))] = int(p[2])
+        else:
+            for p in layers.get("blocks", []):
+                if isinstance(p, list) and len(p) >= 3:
+                    blocks_layers[0][(int(p[0]), int(p[1]))] = int(p[2])
         for p in layers.get("pickups", []):
             if isinstance(p, list) and len(p) >= 3:
                 pickups[(int(p[0]), int(p[1]))] = int(p[2])
@@ -82,10 +88,18 @@ def main():
 
     cam = [0, 0]
     zoom = 1.0
-    layer_names = ["BLOCKS", "COL1", "COL2", "PICKUPS"]
+    layer_names = ["L1", "L2", "L3", "L4", "COL1", "COL2", "PICKUPS"]
     layer_index = 0
     block_type = 1
     pickup_type = 1
+    block_palettes = [
+        [(200, 200, 200), (240, 180, 180), (180, 240, 180), (180, 180, 240), (240, 240, 180)],
+        [(210, 210, 255), (190, 230, 255), (160, 200, 255), (140, 180, 240), (120, 160, 220)],
+        [(255, 210, 210), (255, 190, 230), (255, 160, 200), (240, 140, 180), (220, 120, 160)],
+        [(210, 255, 210), (190, 255, 190), (160, 240, 170), (140, 220, 150), (120, 200, 130)],
+    ]
+    dd_layer_open = False
+    dd_type_open = False
 
     def world_to_screen(x, y):
         return int((x * tile - cam[0]) * zoom), int((y * tile - cam[1]) * zoom)
@@ -99,14 +113,13 @@ def main():
 
     def draw():
         screen.fill((16, 18, 22))
-        colors = {
-            "BLOCKS": [(200, 200, 200), (240, 180, 180), (180, 240, 180), (180, 180, 240), (240, 240, 180)],
-            "PICKUPS": [(255, 200, 0), (0, 200, 255), (255, 0, 200), (0, 255, 120), (255, 120, 0)]
-        }
-        for (x, y), t in blocks.items():
-            c = colors["BLOCKS"][t % len(colors["BLOCKS"])]
-            px, py = world_to_screen(x, y)
-            pygame.draw.rect(screen, c, (px, py, int(tile * zoom), int(tile * zoom)))
+        pickup_colors = [(255, 200, 0), (0, 200, 255), (255, 0, 200), (0, 255, 120), (255, 120, 0)]
+        for li in range(4):
+            for (x, y), t in blocks_layers[li].items():
+                col_list = block_palettes[li]
+                c = col_list[t % len(col_list)]
+                px, py = world_to_screen(x, y)
+                pygame.draw.rect(screen, c, (px, py, int(tile * zoom), int(tile * zoom)))
         for (x, y) in col1:
             px, py = world_to_screen(x, y)
             pygame.draw.rect(screen, (220, 60, 60), (px, py, int(tile * zoom), int(tile * zoom)))
@@ -114,7 +127,7 @@ def main():
             px, py = world_to_screen(x, y)
             pygame.draw.rect(screen, (60, 120, 220), (px, py, int(tile * zoom), int(tile * zoom)))
         for (x, y), t in pickups.items():
-            c = colors["PICKUPS"][t % len(colors["PICKUPS"])]
+            c = pickup_colors[t % len(pickup_colors)]
             px, py = world_to_screen(x, y)
             pygame.draw.rect(screen, c, (px + int(tile * zoom * 0.25), py + int(tile * zoom * 0.25), int(tile * zoom * 0.5), int(tile * zoom * 0.5)))
         grid_color = (40, 46, 54)
@@ -126,9 +139,38 @@ def main():
                 pygame.draw.line(screen, grid_color, (x, 0), (x, screen.get_height()), 1)
             for y in range(y0, screen.get_height(), step):
                 pygame.draw.line(screen, grid_color, (0, y), (screen.get_width(), y), 1)
-        info = f"{os.path.basename(dst_file)} | {layer_names[layer_index]} | block {block_type} | pickup {pickup_type} | cam {cam[0]:.0f},{cam[1]:.0f} zoom {zoom:.2f} | WASD pan, QE zoom, B/P layer, F1/F2/F3/F4 layers, 1-5 type, S save, O load"
+        info = f"{os.path.basename(dst_file)} | {layer_names[layer_index]} | block {block_type} | pickup {pickup_type} | cam {cam[0]:.0f},{cam[1]:.0f} zoom {zoom:.2f} | WASD pan, QE zoom, TAB layer, 1-5 type, S save, O load"
         text = font.render(info, True, (240, 240, 240))
         screen.blit(text, (8, 8))
+        ui_y = 32
+        layer_box = pygame.Rect(8, ui_y, 110, 24)
+        type_box = pygame.Rect(128, ui_y, 110, 24)
+        pygame.draw.rect(screen, (50, 56, 64), layer_box)
+        pygame.draw.rect(screen, (90, 96, 104), layer_box, 1)
+        pygame.draw.rect(screen, (50, 56, 64), type_box)
+        pygame.draw.rect(screen, (90, 96, 104), type_box, 1)
+        layer_label = font.render(f"Layer: {layer_names[layer_index]}", True, (230, 230, 230))
+        type_label = font.render(f"Type: {block_type}", True, (230, 230, 230))
+        screen.blit(layer_label, (layer_box.x + 6, layer_box.y + 4))
+        screen.blit(type_label, (type_box.x + 6, type_box.y + 4))
+        if dd_layer_open:
+            dd_rect = pygame.Rect(layer_box.x, layer_box.y + layer_box.h, layer_box.w, 24 * 4)
+            pygame.draw.rect(screen, (40, 46, 54), dd_rect)
+            pygame.draw.rect(screen, (90, 96, 104), dd_rect, 1)
+            for i, name in enumerate(layer_names[:4]):
+                r = pygame.Rect(layer_box.x, layer_box.y + layer_box.h + i * 24, layer_box.w, 24)
+                pygame.draw.rect(screen, (55, 61, 69), r)
+                txt = font.render(name, True, (230, 230, 230))
+                screen.blit(txt, (r.x + 6, r.y + 4))
+        if dd_type_open:
+            dd_rect2 = pygame.Rect(type_box.x, type_box.y + type_box.h, type_box.w, 24 * 5)
+            pygame.draw.rect(screen, (40, 46, 54), dd_rect2)
+            pygame.draw.rect(screen, (90, 96, 104), dd_rect2, 1)
+            for i in range(5):
+                r2 = pygame.Rect(type_box.x, type_box.y + type_box.h + i * 24, type_box.w, 24)
+                pygame.draw.rect(screen, (55, 61, 69), r2)
+                ttxt = font.render(f"{i + 1}", True, (230, 230, 230))
+                screen.blit(ttxt, (r2.x + 6, r2.y + 4))
         pygame.display.flip()
 
     running = True
@@ -154,13 +196,9 @@ def main():
                     layer_index = 2
                 elif event.key == pygame.K_F4:
                     layer_index = 3
-                elif event.key == pygame.K_b:
-                    layer_index = 0
-                elif event.key == pygame.K_p:
-                    layer_index = 3
                 elif event.key in (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5):
                     n = int(event.unicode)
-                    if layer_names[layer_index] == "BLOCKS":
+                    if layer_names[layer_index] in ("L1", "L2", "L3", "L4"):
                         block_type = n
                     elif layer_names[layer_index] == "PICKUPS":
                         pickup_type = n
@@ -170,11 +208,19 @@ def main():
                         nonlocal_tile = int(d.get("tile_size", tile))
                         nonlocal_gw = int(d.get("grid_width", gw))
                         nonlocal_gh = int(d.get("grid_height", gh))
-                        blocks.clear(); pickups.clear(); col1.clear(); col2.clear()
+                        for b in blocks_layers:
+                            b.clear()
+                        pickups.clear(); col1.clear(); col2.clear()
                         layers = d.get("layers", {})
-                        for p in layers.get("blocks", []):
-                            if isinstance(p, list) and len(p) >= 3:
-                                blocks[(int(p[0]), int(p[1]))] = int(p[2])
+                        if any(k in layers for k in ("blocks_l1", "blocks_l2", "blocks_l3", "blocks_l4")):
+                            for li, key in enumerate(["blocks_l1", "blocks_l2", "blocks_l3", "blocks_l4"]):
+                                for p in layers.get(key, []):
+                                    if isinstance(p, list) and len(p) >= 3:
+                                        blocks_layers[li][(int(p[0]), int(p[1]))] = int(p[2])
+                        else:
+                            for p in layers.get("blocks", []):
+                                if isinstance(p, list) and len(p) >= 3:
+                                    blocks_layers[0][(int(p[0]), int(p[1]))] = int(p[2])
                         for p in layers.get("pickups", []):
                             if isinstance(p, list) and len(p) >= 3:
                                 pickups[(int(p[0]), int(p[1]))] = int(p[2])
@@ -194,7 +240,10 @@ def main():
                         "grid_width": gw,
                         "grid_height": gh,
                         "layers": {
-                            "blocks": sorted([[x, y, t] for ((x, y), t) in blocks.items()]),
+                            "blocks_l1": sorted([[x, y, t] for ((x, y), t) in blocks_layers[0].items()]),
+                            "blocks_l2": sorted([[x, y, t] for ((x, y), t) in blocks_layers[1].items()]),
+                            "blocks_l3": sorted([[x, y, t] for ((x, y), t) in blocks_layers[2].items()]),
+                            "blocks_l4": sorted([[x, y, t] for ((x, y), t) in blocks_layers[3].items()]),
                             "pickups": sorted([[x, y, t] for ((x, y), t) in pickups.items()]),
                             "collision_layer_1": sorted([[x, y] for (x, y) in col1]),
                             "collision_layer_2": sorted([[x, y] for (x, y) in col2])
@@ -202,11 +251,37 @@ def main():
                     }
                     save_json(dst_file, out)
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                cx, cy = screen_to_cell(*pygame.mouse.get_pos())
+                mx, my = pygame.mouse.get_pos()
+                layer_box = pygame.Rect(8, 32, 110, 24)
+                type_box = pygame.Rect(128, 32, 110, 24)
+                if layer_box.collidepoint(mx, my):
+                    dd_layer_open = not dd_layer_open
+                    dd_type_open = False
+                    continue
+                if type_box.collidepoint(mx, my):
+                    dd_type_open = not dd_type_open
+                    dd_layer_open = False
+                    continue
+                if dd_layer_open:
+                    for i, name in enumerate(layer_names[:4]):
+                        r = pygame.Rect(layer_box.x, layer_box.y + layer_box.h + i * 24, layer_box.w, 24)
+                        if r.collidepoint(mx, my):
+                            layer_index = i
+                            dd_layer_open = False
+                            break
+                if dd_type_open:
+                    for i in range(5):
+                        r2 = pygame.Rect(type_box.x, type_box.y + type_box.h + i * 24, type_box.w, 24)
+                        if r2.collidepoint(mx, my):
+                            block_type = i + 1
+                            dd_type_open = False
+                            break
+                cx, cy = screen_to_cell(mx, my)
                 lname = layer_names[layer_index]
                 if event.button == 1:
-                    if lname == "BLOCKS":
-                        blocks[(cx, cy)] = block_type
+                    if lname in ("L1", "L2", "L3", "L4"):
+                        li = 0 if lname == "L1" else 1 if lname == "L2" else 2 if lname == "L3" else 3
+                        blocks_layers[li][(cx, cy)] = block_type
                     elif lname == "COL1":
                         col1.add((cx, cy))
                     elif lname == "COL2":
@@ -215,8 +290,9 @@ def main():
                         pickups[(cx, cy)] = pickup_type
                     last_cell = (cx, cy)
                 elif event.button == 3:
-                    if lname == "BLOCKS":
-                        blocks.pop((cx, cy), None)
+                    if lname in ("L1", "L2", "L3", "L4"):
+                        li = 0 if lname == "L1" else 1 if lname == "L2" else 2 if lname == "L3" else 3
+                        blocks_layers[li].pop((cx, cy), None)
                     elif lname == "COL1":
                         if (cx, cy) in col1:
                             col1.remove((cx, cy))
@@ -233,8 +309,9 @@ def main():
                     if last_cell != (cx, cy):
                         lname = layer_names[layer_index]
                         if buttons[0]:
-                            if lname == "BLOCKS":
-                                blocks[(cx, cy)] = block_type
+                            if lname in ("L1", "L2", "L3", "L4"):
+                                li = 0 if lname == "L1" else 1 if lname == "L2" else 2 if lname == "L3" else 3
+                                blocks_layers[li][(cx, cy)] = block_type
                             elif lname == "COL1":
                                 col1.add((cx, cy))
                             elif lname == "COL2":
@@ -242,8 +319,9 @@ def main():
                             elif lname == "PICKUPS":
                                 pickups[(cx, cy)] = pickup_type
                         elif buttons[2]:
-                            if lname == "BLOCKS":
-                                blocks.pop((cx, cy), None)
+                            if lname in ("L1", "L2", "L3", "L4"):
+                                li = 0 if lname == "L1" else 1 if lname == "L2" else 2 if lname == "L3" else 3
+                                blocks_layers[li].pop((cx, cy), None)
                             elif lname == "COL1":
                                 if (cx, cy) in col1:
                                     col1.remove((cx, cy))

@@ -23,6 +23,7 @@
   <div id="root">
     <div id="canvasWrap">
       <canvas id="c"></canvas>
+      <canvas id="overlay"></canvas>
     </div>
     <div id="sidebar">
       <h1>Web Map</h1>
@@ -30,6 +31,13 @@
         <span class="label">Actions</span>
         <button id="btnGen" class="btn">Generate</button>
         <button id="btnInp" class="btn secondary">Inpaint</button>
+      </div>
+      <div class="row">
+        <span class="label">Inpaint mode</span>
+        <select id="inpMode">
+          <option value="whole">Whole selection</option>
+          <option value="brush">Brush mask</option>
+        </select>
       </div>
       <div class="row">
         <span class="label">Block layer</span>
@@ -53,10 +61,13 @@
 
   <script>
     const c = document.getElementById('c');
+    const overlay = document.getElementById('overlay');
     const wrap = document.getElementById('canvasWrap');
     const ctx = c.getContext('2d');
+    const octx = overlay.getContext('2d');
     const btnGen = document.getElementById('btnGen');
     const btnInp = document.getElementById('btnInp');
+    const inpMode = document.getElementById('inpMode');
     const layerBtn = document.getElementById('layerBtn');
     const layerTxt = document.getElementById('layerTxt');
     const promptEl = document.getElementById('prompt');
@@ -72,10 +83,14 @@
     let sel = {active:false, has:false, sx:0, sy:0, ex:0, ey:0};
     let rdrag = false, lastMouse = null;
     let state = null;
+    let painting = false;
+    let brushSize = 12;
 
     function resize() {
       c.width = wrap.clientWidth;
       c.height = wrap.clientHeight;
+      overlay.width = wrap.clientWidth;
+      overlay.height = wrap.clientHeight;
       draw();
     }
     window.addEventListener('resize', resize);
@@ -109,6 +124,7 @@
 
     function draw() {
       ctx.clearRect(0,0,c.width,c.height);
+      octx.clearRect(0,0,overlay.width, overlay.height);
       // draw existing patches
       for (const p of patches) {
         const img = p._img;
@@ -172,6 +188,34 @@
         sel.ex = cell.x; sel.ey = cell.y; draw();
       }
     });
+
+    // Brush painting on overlay if mode=brush and selection fixed
+    overlay.addEventListener('mousedown', (e) => {
+      if (inpMode.value !== 'brush') return;
+      if (!sel.has || sel.active) return;
+      if (e.button !== 0) return;
+      painting = true;
+      paintAt(e.offsetX, e.offsetY);
+    });
+    overlay.addEventListener('mousemove', (e) => {
+      if (!painting) return;
+      paintAt(e.offsetX, e.offsetY);
+    });
+    overlay.addEventListener('mouseup', () => { painting = false; });
+    overlay.addEventListener('mouseleave', () => { painting = false; });
+
+    function paintAt(mx, my) {
+      const cell = screenToCell(mx, my);
+      const x0 = Math.min(sel.sx, sel.ex), y0 = Math.min(sel.sy, sel.ey);
+      const px = (cell.x - x0) * tile;
+      const py = (cell.y - y0) * tile;
+      const pos = worldToScreen(cell.x, cell.y);
+      const r = Math.max(2, Math.floor(brushSize * zoom));
+      octx.fillStyle = 'rgba(255,255,255,1)';
+      octx.beginPath();
+      octx.arc(pos.x + Math.floor(tile*zoom/2), pos.y + Math.floor(tile*zoom/2), r, 0, Math.PI*2);
+      octx.fill();
+    }
     c.addEventListener('wheel', (e) => {
       const k = e.deltaY < 0 ? 1.1 : 1/1.1;
       zoom = Math.max(0.25, Math.min(4.0, zoom * k));
@@ -201,7 +245,48 @@
       if (p === null) return; // user cancelled
       const x0 = Math.min(sel.sx, sel.ex), y0 = Math.min(sel.sy, sel.ey);
       const w = Math.abs(sel.ex - sel.sx) + 1, h = Math.abs(sel.ey - sel.sy) + 1;
-      const body = {x:x0, y:y0, w, h, prompt: p};
+      let mask_base64 = null;
+      if (inpMode.value === 'brush') {
+        const maskCanvas = document.createElement('canvas');
+        maskCanvas.width = w * tile;
+        maskCanvas.height = h * tile;
+        const mctx = maskCanvas.getContext('2d');
+        mctx.fillStyle = 'black';
+        mctx.fillRect(0,0,maskCanvas.width, maskCanvas.height);
+        const sx = Math.floor((Math.min(sel.sx, sel.ex) * tile - cam.x) * zoom);
+        const sy = Math.floor((Math.min(sel.sy, sel.ey) * tile - cam.y) * zoom);
+        const sw = Math.floor(w * tile * zoom);
+        const sh = Math.floor(h * tile * zoom);
+        mctx.imageSmoothingEnabled = false;
+        mctx.drawImage(overlay, sx, sy, sw, sh, 0, 0, maskCanvas.width, maskCanvas.height);
+        // autocrop to painted bbox and pad to tile grid
+        const imgData = mctx.getImageData(0,0,maskCanvas.width, maskCanvas.height);
+        let minX = maskCanvas.width, minY = maskCanvas.height, maxX = -1, maxY = -1;
+        for (let y=0; y<imgData.height; y++) {
+          for (let x=0; x<imgData.width; x++) {
+            const i = (y*imgData.width + x)*4;
+            const a = imgData.data[i+3];
+            if (a > 0) { if (x<minX) minX=x; if (y<minY) minY=y; if (x>maxX) maxX=x; if (y>maxY) maxY=y; }
+          }
+        }
+        if (maxX >= minX && maxY >= minY) {
+          const gx0 = Math.floor(minX / tile); const gy0 = Math.floor(minY / tile);
+          const gx1 = Math.ceil((maxX+1) / tile); const gy1 = Math.ceil((maxY+1) / tile);
+          const cropX = gx0 * tile, cropY = gy0 * tile;
+          const cropW = (gx1 - gx0) * tile, cropH = (gy1 - gy0) * tile;
+          const cropped = document.createElement('canvas');
+          cropped.width = cropW; cropped.height = cropH;
+          const cctx = cropped.getContext('2d');
+          cctx.putImageData(mctx.getImageData(cropX, cropY, cropW, cropH), 0, 0);
+          mask_base64 = cropped.toDataURL('image/png').split(',')[1];
+          // adjust selection to cropped region so server places patch correctly
+          const dx = gx0; const dy = gy0;
+          sel.sx = sel.ex = x0 + dx; sel.sy = sel.ey = y0 + dy; // temporary for placement
+        } else {
+          mask_base64 = null;
+        }
+      }
+      const body = {x:x0, y:y0, w, h, prompt: p, mask_base64};
       const r = await fetch('/api/inpaint', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
       const out = await r.json();
       for (const pch of out.patches || []) {

@@ -12,6 +12,7 @@ from pydantic import BaseModel
 import logging
 from PIL import Image
 import pixellab
+import base64
 
 
 def load_env():
@@ -49,6 +50,7 @@ class InpaintBody(BaseModel):
     w: int
     h: int
     prompt: str | None = None
+    mask_base64: str | None = None
 
 
 class DeleteBody(BaseModel):
@@ -231,16 +233,64 @@ def api_inpaint(b: InpaintBody):
     cap = max(1, cap)
     prompt = b.prompt or ""
     out = []
+    mask_full: Image.Image | None = None
+    if b.mask_base64:
+        try:
+            mask_bytes = base64.b64decode(b.mask_base64)
+            mask_full = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
+        except Exception:
+            mask_full = None
     for yy in range(b.y, b.y + b.h, cap):
         for xx in range(b.x, b.x + b.w, cap):
             cw = min(cap, b.x + b.w - xx)
             ch = min(cap, b.y + b.h - yy)
             init_png = compose_region(xx, yy, cw, ch)
             try:
-                mask = Image.new("RGBA", (cw * tile, ch * tile), (255, 255, 255, 255))
                 init_img = Image.open(io.BytesIO(init_png)).convert("RGBA")
-                logger.info(f"Pixellab bitforge inpaint {cw*tile}x{ch*tile}")
-                resp = px.generate_image_bitforge(
+                if mask_full is not None:
+                    sx = max(0, (xx - b.x) * tile)
+                    sy = max(0, (yy - b.y) * tile)
+                    ex = sx + cw * tile
+                    ey = sy + ch * tile
+                    ex = min(ex, mask_full.width)
+                    ey = min(ey, mask_full.height)
+                    mask_sub = mask_full.crop((sx, sy, ex, ey))
+                    alpha = mask_sub.split()[-1]
+                    bbox = alpha.getbbox()
+                    if bbox is None:
+                        continue
+                    bx0, by0, bx1, by1 = bbox
+                    tx0 = max(0, bx0 // tile)
+                    ty0 = max(0, by0 // tile)
+                    tx1 = min(cw, (bx1 + tile - 1) // tile)
+                    ty1 = min(ch, (by1 + tile - 1) // tile)
+                    if tx1 <= tx0 or ty1 <= ty0:
+                        continue
+                    px0 = tx0 * tile
+                    py0 = ty0 * tile
+                    px1 = tx1 * tile
+                    py1 = ty1 * tile
+                    init_crop = init_img.crop((px0, py0, px1, py1))
+                    mask_crop = mask_sub.crop((px0, py0, px1, py1))
+                    tw = (tx1 - tx0) * tile
+                    th = (ty1 - ty0) * tile
+                    logger.info(f"Pixellab v2 inpaint {tw}x{th} (tile-cropped)")
+                    resp = px.inpaint(
+                        description=prompt,
+                        image_size={"width": tw, "height": th},
+                        inpainting_image=init_crop,
+                        mask_image=mask_crop,
+                    )
+                    im = resp.image.pil_image()
+                    outbuf = io.BytesIO()
+                    im.save(outbuf, format="PNG")
+                    img = outbuf.getvalue()
+                    rec = save_patch(img, xx + tx0, yy + ty0, (tx1 - tx0), (ty1 - ty0))
+                    out.append(rec)
+                    continue
+                mask = Image.new("RGBA", (cw * tile, ch * tile), (255, 255, 255, 255))
+                logger.info(f"Pixellab v2 inpaint {cw*tile}x{ch*tile}")
+                resp = px.inpaint(
                     description=prompt,
                     image_size={"width": cw * tile, "height": ch * tile},
                     inpainting_image=init_img,

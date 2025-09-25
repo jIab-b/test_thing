@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Map Editor (Web)</title>
+  <style>
+    body { margin: 0; background: #f5f7fb; color: #1e2430; font-family: system-ui, sans-serif; }
+    #topbar { display: flex; gap: 8px; padding: 8px; align-items: center; background: #ffffff; border-bottom: 1px solid #dfe3ea; position: sticky; top: 0; }
+    #canvas { display: block; width: 100vw; height: calc(100vh - 50px); background: #e9edf5; }
+    select, button { background: #ffffff; color: #1e2430; border: 1px solid #cfd6e2; padding: 6px 8px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <div id="topbar">
+    <select id="mode">
+      <option>block (coll)</option>
+      <option>blue spawn</option>
+      <option>red spawn</option>
+      <option>health refill</option>
+      <option>attack refill</option>
+      <option>delete</option>
+    </select>
+    <button id="zoomIn">+</button>
+    <button id="zoomOut">-</button>
+  </div>
+  <canvas id="canvas"></canvas>
+  <script>
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  let zoom = 1.0;
+  let camX = 0, camY = 0;
+  let isPanning = false; let panStart = [0,0]; let camStart = [0,0];
+  let gridW = 120, gridH = 68, tile = 32;
+  const layers = {
+    'block (coll)': new Map(),
+    'blue spawn': new Map(),
+    'red spawn': new Map(),
+    'health refill': new Map(),
+    'attack refill': new Map(),
+  };
+  const MAP_NAME = 'map_01';
+  const MIN_TILE_PX = 28;
+  let saveTimer = null;
+
+  function key(x,y){ return `${x},${y}` }
+  function parseKey(k){ const [x,y] = k.split(',').map(Number); return [x,y] }
+
+  function resize(){
+    const top = document.getElementById('topbar');
+    const w = window.innerWidth;
+    const h = window.innerHeight - top.offsetHeight;
+    canvas.width = w; canvas.height = h;
+    draw();
+  }
+  window.addEventListener('resize', resize); resize();
+
+  function computeExtents(){
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let count = 0;
+    for (const m of Object.values(layers)){
+      for (const k of m.keys()){
+        const [x,y] = parseKey(k);
+        minX = Math.min(minX, x); minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+        count++;
+      }
+    }
+    if (count === 0){
+      return { minX: 0, minY: 0, maxX: Math.max(10, gridW-1), maxY: Math.max(6, gridH-1), empty: true };
+    }
+    return { minX, minY, maxX, maxY, empty: false };
+  }
+
+  function fitToExtents(){
+    const m = computeExtents();
+    const pad = 5;
+    const left = Math.max(0, m.minX - pad) * tile;
+    const top = Math.max(0, m.minY - pad) * tile;
+    const right = (m.maxX + 1 + pad) * tile;
+    const bottom = (m.maxY + 1 + pad) * tile;
+    const areaW = right - left;
+    const areaH = bottom - top;
+    const zx = canvas.width / Math.max(areaW, 1);
+    const zy = canvas.height / Math.max(areaH, 1);
+    let candidate = Math.min(zx, zy);
+    const minByTile = MIN_TILE_PX / Math.max(tile, 1);
+    if (m.empty) candidate = Math.max(candidate, 1.25);
+    zoom = Math.max(0.25, Math.min(8, Math.max(candidate, minByTile)));
+    camX = left + areaW/2 - canvas.width/(2*zoom);
+    camY = top + areaH/2 - canvas.height/(2*zoom);
+    draw();
+  }
+
+  function worldToScreen(x, y){
+    return [ Math.round((x*tile - camX) * zoom), Math.round((y*tile - camY) * zoom) ];
+  }
+  function screenToCell(mx, my){
+    const wx = camX + mx/Math.max(zoom, 1e-6);
+    const wy = camY + my/Math.max(zoom, 1e-6);
+    const cx = Math.max(0, Math.floor(wx / tile));
+    const cy = Math.max(0, Math.floor(wy / tile));
+    return [cx, cy];
+  }
+
+  function draw(){
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.fillStyle = '#e9edf5';
+    ctx.fillRect(0,0,canvas.width, canvas.height);
+
+    const blockCol = '#c8c8c8';
+    const spawnBlue = '#5aa6ff';
+    const spawnRed = '#ff6b6b';
+    const healthCol = '#6bff90';
+    const attackCol = '#ffb86b';
+
+    for (const [k] of layers['block (coll)']){
+      const [x,y] = parseKey(k);
+      const [sx, sy] = worldToScreen(x,y);
+      ctx.fillStyle = blockCol; ctx.fillRect(sx, sy, tile*zoom, tile*zoom);
+    }
+    for (const [k] of layers['blue spawn']){
+      const [x,y] = parseKey(k); const [sx, sy] = worldToScreen(x,y);
+      ctx.fillStyle = spawnBlue; ctx.fillRect(sx, sy, tile*zoom, tile*zoom);
+    }
+    for (const [k] of layers['red spawn']){
+      const [x,y] = parseKey(k); const [sx, sy] = worldToScreen(x,y);
+      ctx.fillStyle = spawnRed; ctx.fillRect(sx, sy, tile*zoom, tile*zoom);
+    }
+    for (const [k] of layers['health refill']){
+      const [x,y] = parseKey(k); const [sx, sy] = worldToScreen(x,y);
+      ctx.fillStyle = healthCol; ctx.fillRect(sx + tile*zoom*0.25, sy + tile*zoom*0.25, tile*zoom*0.5, tile*zoom*0.5);
+    }
+    for (const [k] of layers['attack refill']){
+      const [x,y] = parseKey(k); const [sx, sy] = worldToScreen(x,y);
+      ctx.fillStyle = attackCol; ctx.fillRect(sx + tile*zoom*0.25, sy + tile*zoom*0.25, tile*zoom*0.5, tile*zoom*0.5);
+    }
+
+    const m = computeExtents();
+    const pad = 5;
+    const startX = Math.max(0, m.minX - pad);
+    const startY = Math.max(0, m.minY - pad);
+    const endX = Math.max(startX, m.maxX + pad);
+    const endY = Math.max(startY, m.maxY + pad);
+
+    const step = Math.floor(tile*zoom);
+    if (step >= 8){
+      ctx.strokeStyle = '#cfd6e2'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let gx = startX; gx <= endX + 1; gx++){
+        const x = Math.round((gx*tile - camX) * zoom);
+        ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height);
+      }
+      for (let gy = startY; gy <= endY + 1; gy++){
+        const y = Math.round((gy*tile - camY) * zoom);
+        ctx.moveTo(0, y); ctx.lineTo(canvas.width, y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  function scheduleSave(){
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(save, 200);
+  }
+
+  canvas.addEventListener('mousedown', (e)=>{
+    if (e.button === 2 || e.shiftKey){
+      isPanning = true; panStart = [e.clientX, e.clientY]; camStart = [camX, camY]; return;
+    }
+    const [cx, cy] = screenToCell(e.offsetX, e.offsetY);
+    const mode = document.getElementById('mode').value;
+    if (e.button === 0){
+      if (mode === 'delete'){
+        for (const m of Object.values(layers)) m.delete(key(cx,cy));
+      } else {
+        layers[mode].set(key(cx,cy), 1);
+      }
+      scheduleSave();
+    }
+    draw();
+  });
+  canvas.addEventListener('mousemove', (e)=>{
+    if (isPanning){
+      camX = camStart[0] - (e.clientX - panStart[0]) / Math.max(zoom, 1e-6);
+      camY = camStart[1] - (e.clientY - panStart[1]) / Math.max(zoom, 1e-6);
+      draw();
+      return;
+    }
+    if (e.buttons & 1){
+      const [cx, cy] = screenToCell(e.offsetX, e.offsetY);
+      const mode = document.getElementById('mode').value;
+      if (mode === 'delete'){
+        for (const m of Object.values(layers)) m.delete(key(cx,cy));
+      } else {
+        layers[mode].set(key(cx,cy), 1);
+      }
+      scheduleSave();
+      draw();
+    }
+  });
+  canvas.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    const mx = e.offsetX, my = e.offsetY;
+    const wx = camX + mx/Math.max(zoom, 1e-6);
+    const wy = camY + my/Math.max(zoom, 1e-6);
+    const factor = e.deltaY < 0 ? 1.15 : 1/1.15;
+    const newZoom = Math.max(0.25, Math.min(8, zoom * factor));
+    if (newZoom === zoom) return;
+    zoom = newZoom;
+    camX = wx - mx/zoom;
+    camY = wy - my/zoom;
+    draw();
+  }, { passive: false });
+  window.addEventListener('mouseup', ()=>{ isPanning = false; });
+  canvas.addEventListener('contextmenu', (e)=> e.preventDefault());
+
+  document.getElementById('zoomIn').onclick = ()=>{ zoom = Math.min(8, zoom*1.15); draw(); };
+  document.getElementById('zoomOut').onclick = ()=>{ zoom = Math.max(0.25, zoom/1.15); draw(); };
+
+  async function save(){
+    const payload = {
+      version: 2,
+      tile_size: tile,
+      grid_width: gridW,
+      grid_height: gridH,
+      layers: Object.fromEntries(Object.entries(layers).map(([name, map]) => [name, Array.from(map.entries()).map(([k,v])=>{const [x,y]=parseKey(k); return [x,y,v];})]))
+    };
+    await fetch(`/api/map/${encodeURIComponent(MAP_NAME)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  }
+  async function load(){
+    const res = await fetch(`/api/map/${encodeURIComponent(MAP_NAME)}`);
+    if (!res.ok){ fitToExtents(); return; }
+    const d = await res.json();
+    gridW = d.grid_width || gridW; gridH = d.grid_height || gridH; tile = d.tile_size || tile;
+    for (const k of Object.keys(layers)) layers[k].clear();
+    const L = d.layers || {};
+    for (const lname of Object.keys(layers)){
+      const arr = L[lname] || [];
+      for (const p of arr){ if (Array.isArray(p) && p.length>=3){ layers[lname].set(key(parseInt(p[0]), parseInt(p[1])), 1); } }
+    }
+    fitToExtents();
+  }
+
+  load();
+  </script>
+</body>
+</html>

@@ -7,11 +7,12 @@ static func import_map(parent: Node, json_path: String) -> void:
     var gh := 68
     var blocks := []
     var pickups := []
+    var data = null
     var f := FileAccess.open(json_path, FileAccess.READ)
     if f != null:
         var txt := f.get_as_text()
         f.close()
-        var data = JSON.parse_string(txt)
+        data = JSON.parse_string(txt)
         if typeof(data) == TYPE_DICTIONARY:
             tile_size = int(data.get("tile_size", tile_size))
             gw = int(data.get("grid_width", gw))
@@ -97,8 +98,8 @@ static func import_map(parent: Node, json_path: String) -> void:
             sprite.position = Vector2((x + 0.5) * tile_size, (y + 0.5) * tile_size)
             blocks_node.add_child(sprite)
 
-    var tileset := {} if data == null or typeof(data) != TYPE_DICTIONARY else data.get("tileset", {})
-    var tile_indices := [] if data == null or typeof(data) != TYPE_DICTIONARY else data.get("tile_indices", [])
+    var tileset: Dictionary = {} if data == null or typeof(data) != TYPE_DICTIONARY else data.get("tileset", {})
+    var tile_indices: Array = [] if data == null or typeof(data) != TYPE_DICTIONARY else data.get("tile_indices", [])
     if typeof(tileset) == TYPE_DICTIONARY and tile_indices is Array and tile_indices.size() > 0:
         var file := String(tileset.get("file", ""))
         var tw := int(tileset.get("tile_w", tile_size))

@@ -136,27 +136,18 @@
       ctx.fillStyle = attackCol; ctx.fillRect(sx + tile*zoom*0.25, sy + tile*zoom*0.25, tile*zoom*0.5, tile*zoom*0.5);
     }
 
-    const m = computeExtents();
-    const pad = 5;
-    const startX = Math.max(0, m.minX - pad);
-    const startY = Math.max(0, m.minY - pad);
-    const endX = Math.max(startX, m.maxX + pad);
-    const endY = Math.max(startY, m.maxY + pad);
-
-    const step = Math.floor(tile*zoom);
-    if (step >= 8){
-      ctx.strokeStyle = '#cfd6e2'; ctx.lineWidth = 1;
-      ctx.beginPath();
-      for (let gx = startX; gx <= endX + 1; gx++){
-        const x = Math.round((gx*tile - camX) * zoom);
-        ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height);
-      }
-      for (let gy = startY; gy <= endY + 1; gy++){
-        const y = Math.round((gy*tile - camY) * zoom);
-        ctx.moveTo(0, y); ctx.lineTo(canvas.width, y);
-      }
-      ctx.stroke();
+    const step = Math.max(1, Math.floor(tile*zoom));
+    const x0 = (-Math.floor(camX * zoom)) % step;
+    const y0 = (-Math.floor(camY * zoom)) % step;
+    ctx.strokeStyle = '#cfd6e2'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = x0; x < canvas.width; x += step){
+      ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height);
     }
+    for (let y = y0; y < canvas.height; y += step){
+      ctx.moveTo(0, y); ctx.lineTo(canvas.width, y);
+    }
+    ctx.stroke();
   }
 
   function scheduleSave(){

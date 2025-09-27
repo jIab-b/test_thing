@@ -1,6 +1,13 @@
 class_name MapImporter
 extends Node
 
+static func _make_circle_polygon(radius: float, segments: int = 16) -> PackedVector2Array:
+    var pts := PackedVector2Array()
+    for i in range(segments):
+        var angle := TAU * float(i) / float(segments)
+        pts.append(Vector2(cos(angle), sin(angle)) * radius)
+    return pts
+
 static func import_map(parent: Node, json_path: String) -> void:
     var tile_size := 32
     var gw := 120
@@ -44,6 +51,33 @@ static func import_map(parent: Node, json_path: String) -> void:
     if blue_spawn_px.size() == 0:
         blue_spawn_px.append(Vector2(width_px * 0.5, height_px * 0.5))
         parent.set_meta("spawns_blue", blue_spawn_px)
+
+    var spawn_markers := parent.get_node_or_null("SpawnMarkers")
+    if spawn_markers == null:
+        spawn_markers = Node2D.new()
+        spawn_markers.name = "SpawnMarkers"
+        parent.add_child(spawn_markers)
+    else:
+        for child in spawn_markers.get_children():
+            child.queue_free()
+    spawn_markers.z_index = 15
+    var marker_radius := float(tile_size) * 0.4
+    for pos in blue_spawn_px:
+        if pos is Vector2:
+            var marker := Polygon2D.new()
+            marker.polygon = _make_circle_polygon(marker_radius)
+            marker.color = Color(0.25, 0.6, 1.0, 0.55)
+            marker.position = pos
+            marker.z_index = 35
+            spawn_markers.add_child(marker)
+    for pos in red_spawn_px:
+        if pos is Vector2:
+            var marker2 := Polygon2D.new()
+            marker2.polygon = _make_circle_polygon(marker_radius)
+            marker2.color = Color(1.0, 0.35, 0.35, 0.55)
+            marker2.position = pos
+            marker2.z_index = 35
+            spawn_markers.add_child(marker2)
 
     for n in ["Background", "Bounds"]:
         var old := parent.get_node_or_null(n)
@@ -159,6 +193,10 @@ static func import_map(parent: Node, json_path: String) -> void:
         pickups_node = Node2D.new()
         pickups_node.name = "Pickups"
         parent.add_child(pickups_node)
+    else:
+        for child in pickups_node.get_children():
+            child.queue_free()
+    pickups_node.z_index = 10
     var pickup_scene: PackedScene = preload("res://scenes/Pickup.tscn")
     if typeof(layers_dict) == TYPE_DICTIONARY and pickup_scene != null:
         for p in layers_dict.get("attack refill", []):
@@ -168,6 +206,7 @@ static func import_map(parent: Node, json_path: String) -> void:
                 var node := pickup_scene.instantiate()
                 node.kind = "attack"
                 node.global_position = Vector2((px + 0.5) * tile_size, (py + 0.5) * tile_size)
+                node.z_index = 20
                 pickups_node.add_child(node)
         for p in layers_dict.get("health refill", []):
             if p is Array and p.size() >= 2:
@@ -176,7 +215,19 @@ static func import_map(parent: Node, json_path: String) -> void:
                 var node2 := pickup_scene.instantiate()
                 node2.kind = "health"
                 node2.global_position = Vector2((hx + 0.5) * tile_size, (hy + 0.5) * tile_size)
+                node2.z_index = 20
                 pickups_node.add_child(node2)
+    if pickup_scene != null and pickups is Array:
+        for entry in pickups:
+            if typeof(entry) == TYPE_DICTIONARY:
+                var kind := String(entry.get("kind", "attack"))
+                var ex := int(entry.get("x", 0))
+                var ey := int(entry.get("y", 0))
+                var p_node := pickup_scene.instantiate()
+                p_node.kind = kind
+                p_node.global_position = Vector2((ex + 0.5) * tile_size, (ey + 0.5) * tile_size)
+                p_node.z_index = 20
+                pickups_node.add_child(p_node)
 
     var old_mon := parent.get_node_or_null("EnemyMonuments")
     if old_mon != null:

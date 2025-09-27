@@ -21,6 +21,9 @@ func _ready() -> void:
             if m2 != "":
                 chosen = _map_path_from_number(m2)
     MapImporterRef.import_map(self, chosen)
+    var controller := get_node_or_null("GameController")
+    if controller != null and controller.has_method("notify_map_loaded"):
+        controller.notify_map_loaded(self)
     await get_tree().process_frame
     var blues: Array = get_meta("spawns_blue", [])
     var player := get_tree().get_first_node_in_group("player")

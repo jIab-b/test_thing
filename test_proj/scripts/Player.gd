@@ -6,11 +6,14 @@ extends CharacterBody2D
 @export var dash_cooldown: float = 0.8
 @export var attack_cooldown: float = 0.25
 @export var max_health: float = 200.0
-@export var deflect_window: float = 0.12
+@export var deflect_window: float = 0.2
+@export var deflect_followup_window: float = 2.0
 
 const SlashScene := preload("res://scenes/Slash.tscn")
 const ExplosionEffect := preload("res://scripts/Explosion.gd")
 const DeflectFlashShader := preload("res://shaders/deflect_flash.gdshader")
+const DeflectEffectScene := preload("res://scenes/DeflectEffect.tscn")
+const DeflectBulletScene := preload("res://scenes/DeflectBullet.tscn")
 
 var dash_time_left: float = 0.0
 var dash_cooldown_left: float = 0.0
@@ -19,6 +22,8 @@ var invuln_time_left: float = 0.0
 var deflect_time_left: float = 0.0
 var health: float = max_health
 var aim_direction: Vector2 = Vector2.RIGHT
+var deflect_bonus_time_left: float = 0.0
+var deflect_bonus_available: bool = false
 
 @onready var sprite: Sprite2D = $Sprite2D
 var deflect_mat: ShaderMaterial = null
@@ -56,13 +61,17 @@ func _physics_process(delta: float) -> void:
             dash_cooldown_left -= delta
     if invuln_time_left > 0.0:
         invuln_time_left -= delta
+    if deflect_time_left > 0.0:
+        deflect_time_left = max(deflect_time_left - delta, 0.0)
     move_and_slide()
 
 func _process(delta: float) -> void:
     if attack_cooldown_left > 0.0:
         attack_cooldown_left -= delta
-    if deflect_time_left > 0.0:
-        deflect_time_left -= delta
+    if deflect_bonus_time_left > 0.0:
+        deflect_bonus_time_left = max(deflect_bonus_time_left - delta, 0.0)
+        if deflect_bonus_time_left <= 0.0:
+            deflect_bonus_available = false
     if deflect_mat != null:
         var active_val: float = 0.0
         if deflect_time_left > 0.0:
@@ -70,26 +79,36 @@ func _process(delta: float) -> void:
         deflect_mat.set_shader_parameter("active", active_val)
         var p: float = 0.0
         if deflect_window > 0.0 and deflect_time_left > 0.0:
-            p = 1.0 - (deflect_time_left / deflect_window)
+            var clamped_time: float = min(deflect_time_left, deflect_window)
+            p = clamp(1.0 - (clamped_time / deflect_window), 0.0, 1.0)
         deflect_mat.set_shader_parameter("progress", p)
     if Input.is_action_just_pressed("dash") and dash_cooldown_left <= 0.0:
         dash_time_left = dash_duration
         dash_cooldown_left = dash_cooldown
         invuln_time_left = dash_duration
     if Input.is_action_just_pressed("block"):
-        deflect_time_left = deflect_window
+        deflect_time_left = deflect_window + 0.02
+        var mouse_dir := get_global_mouse_position() - global_position
+        if mouse_dir.length_squared() <= 0.001:
+            mouse_dir = aim_direction
+        _spawn_deflect_arc(mouse_dir.normalized(), deflect_time_left)
     if Input.is_action_pressed("attack") and attack_cooldown_left <= 0.0:
-        _slash()
-        attack_cooldown_left = attack_cooldown
+        if not _try_fire_deflect_burst():
+            _slash()
+            attack_cooldown_left = attack_cooldown
 
 func _slash() -> void:
     var s := SlashScene.instantiate()
     var dir := (get_global_mouse_position() - global_position).normalized()
-    var distance := 40.0  # Move slash 40 pixels away from player
-    var perp_dir := Vector2(dir.y, -dir.x)  # Opposite perpendicular direction for wider swing arc
-    var offset := dir * distance + perp_dir * 30.0  # Offset along direction + less perpendicular for moderate swing arc
+    if dir.length_squared() <= 0.001:
+        dir = aim_direction.normalized()
+    if dir.length_squared() <= 0.001:
+        dir = Vector2.RIGHT
+    var distance := 56.0  # Push slash further forward before the arc begins
+    var perp_dir := Vector2(-dir.y, dir.x)  # Shift slash outward along perpendicular before curling back
+    var offset := dir * distance + perp_dir * 32.0
     s.global_position = global_position + offset
-    s.setup(dir)
+    s.setup(dir, global_position, true)
     get_parent().add_child(s)
 
 func take_damage(amount: float) -> void:
@@ -115,21 +134,65 @@ func attempt_deflect(attacker: Node) -> bool:
 
 func _on_deflect_success() -> void:
     _spawn_explosion()
-    _deflect_knockback()
+    _activate_deflect_bonus()
 
 func _spawn_explosion() -> void:
     var e := ExplosionEffect.new()
     e.global_position = global_position
     get_parent().add_child(e)
 
-func _deflect_knockback() -> void:
-    var radius := 160.0
-    var force := 760.0
-    for n in get_tree().get_nodes_in_group("enemies"):
-        if n is CharacterBody2D:
-            var enemy := n as CharacterBody2D
-            var d: float = enemy.global_position.distance_to(global_position)
-            if d <= radius:
-                var dir: Vector2 = (enemy.global_position - global_position).normalized()
-                enemy.velocity += dir * force
+func _spawn_deflect_arc(dir: Vector2, lifetime: float = 0.2) -> void:
+    if DeflectEffectScene == null:
+        return
+    var effect := DeflectEffectScene.instantiate()
+    effect.global_position = global_position
+    if effect.has_method("setup"):
+        effect.setup(dir)
+    if effect.has_method("set_duration"):
+        effect.set_duration(lifetime)
+    get_parent().add_child(effect)
 
+func _activate_deflect_bonus() -> void:
+    deflect_bonus_time_left = deflect_followup_window
+    deflect_bonus_available = true
+
+func _try_fire_deflect_burst() -> bool:
+    if not deflect_bonus_available or deflect_bonus_time_left <= 0.0:
+        return false
+    deflect_bonus_available = false
+    deflect_bonus_time_left = 0.0
+    var dir := get_global_mouse_position() - global_position
+    if dir.length_squared() <= 0.001:
+        dir = aim_direction
+    if dir.length_squared() <= 0.001:
+        dir = Vector2.RIGHT
+    _launch_deflect_burst(dir.normalized())
+    attack_cooldown_left = attack_cooldown
+    return true
+
+func _launch_deflect_burst(dir: Vector2) -> void:
+    var delays := [0.0, 0.08, 0.16]
+    for delay in delays:
+        if delay <= 0.0:
+            _spawn_deflect_bullet(dir)
+        else:
+            var timer := Timer.new()
+            timer.one_shot = true
+            timer.wait_time = delay
+            add_child(timer)
+            var local_timer := timer
+            timer.timeout.connect(func() -> void:
+                if is_instance_valid(self):
+                    _spawn_deflect_bullet(dir)
+                local_timer.queue_free()
+            )
+            timer.start()
+
+func _spawn_deflect_bullet(dir: Vector2) -> void:
+    if DeflectBulletScene == null:
+        return
+    var bullet := DeflectBulletScene.instantiate()
+    get_parent().add_child(bullet)
+    bullet.global_position = global_position
+    if bullet.has_method("setup"):
+        bullet.setup(dir)

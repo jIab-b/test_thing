@@ -2,6 +2,7 @@ extends Node2D
 
 @export var duration: float = 0.4
 @export var radius: float = 140.0
+@export var knockback_force: float = 900.0
 
 var elapsed: float = 0.0
 var sprite: Sprite2D
@@ -21,6 +22,7 @@ func _ready() -> void:
     add_child(sprite)
     sprite.scale = Vector2.ONE * (radius / 128.0) * 0.6
     z_index = 999
+    call_deferred("_apply_knockback")
 
 func _process(delta: float) -> void:
     elapsed += delta
@@ -31,5 +33,20 @@ func _process(delta: float) -> void:
     sprite.scale = Vector2.ONE * (radius / 128.0) * s
     if elapsed >= duration:
         queue_free()
+
+func _apply_knockback() -> void:
+    var enemies := get_tree().get_nodes_in_group("enemies")
+    for n in enemies:
+        if n is Node2D:
+            var enemy := n as Node2D
+            var distance := enemy.global_position.distance_to(global_position)
+            if distance <= radius:
+                var dir: Vector2 = (enemy.global_position - global_position).normalized()
+                var falloff: float = 1.0 - clamp(distance / max(radius, 0.001), 0.0, 1.0)
+                var force: Vector2 = dir * knockback_force * falloff
+                if enemy.has_method("apply_knockback"):
+                    enemy.apply_knockback(force)
+                elif enemy is CharacterBody2D:
+                    (enemy as CharacterBody2D).velocity += force
 
 

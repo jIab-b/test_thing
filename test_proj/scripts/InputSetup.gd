@@ -7,6 +7,7 @@ static func ensure_actions() -> void:
     _ensure_action_with_keys("move_up", [KEY_W, KEY_UP])
     _ensure_action_with_keys("move_down", [KEY_S, KEY_DOWN])
     _ensure_action_with_keys("dash", [KEY_SPACE, KEY_SHIFT])
+    _ensure_action_with_keys("toggle_deploy", [KEY_TAB])
     _ensure_action_mouse("attack", MOUSE_BUTTON_LEFT)
     _ensure_action_mouse("block", MOUSE_BUTTON_RIGHT)
 

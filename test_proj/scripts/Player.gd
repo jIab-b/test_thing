@@ -29,6 +29,15 @@ func _ready() -> void:
     img.fill(Color(0.3, 1.0, 0.3, 1))
     var tex := ImageTexture.create_from_image(img)
     sprite.texture = tex
+    var player_path := ProjectSettings.globalize_path("res://../assets/player.png")
+    var pimg := Image.new()
+    if pimg.load(player_path) == OK:
+        var nw := int(max(1, pimg.get_width() / 15))
+        var nh := int(max(1, pimg.get_height() / 15))
+        pimg.resize(nw, nh)
+        var ptex := ImageTexture.create_from_image(pimg)
+        if ptex != null:
+            sprite.texture = ptex
     if DeflectFlashShader != null:
         deflect_mat = ShaderMaterial.new()
         deflect_mat.shader = DeflectFlashShader

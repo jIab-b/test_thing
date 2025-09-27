@@ -20,6 +20,15 @@ func _ready() -> void:
 		var tex := ImageTexture.create_from_image(img)
 		sprite.texture = tex
 	sprite.z_index = 5
+	var ally_path := ProjectSettings.globalize_path("res://../assets/ally.png")
+	var aimg := Image.new()
+	if aimg.load(ally_path) == OK:
+		var nw := int(max(1, aimg.get_width() / 15))
+		var nh := int(max(1, aimg.get_height() / 15))
+		aimg.resize(nw, nh)
+		var atex := ImageTexture.create_from_image(aimg)
+		if atex != null:
+			sprite.texture = atex
 
 func _physics_process(delta: float) -> void:
 	if target_ref == null or not is_instance_valid(target_ref):

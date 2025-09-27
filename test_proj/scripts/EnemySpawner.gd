@@ -8,6 +8,8 @@ var difficulty_time: float = 0.0
 var rng: RandomNumberGenerator = null
 var spawn_rate_multiplier: float = 1.0
 var boost_time_left: float = 0.0
+var spawn_dirs: Array[Vector2] = []
+var next_spawn_index: int = 0
 
 func get_base_interval() -> float:
     return spawn_interval
@@ -15,6 +17,7 @@ func get_base_interval() -> float:
 func _ready() -> void:
     rng = RandomNumberGenerator.new()
     rng.randomize()
+    _initialize_spawn_dirs()
     set_process(true)
     time_since_spawn = 9999.0
     call_deferred("_spawn_initial")
@@ -38,16 +41,6 @@ func _process(delta: float) -> void:
 func _spawn_enemy() -> void:
     if enemy_scene == null:
         return
-    var reds: Array = get_parent().get_meta("spawns_red", [])
-    if reds is Array and reds.size() > 0:
-        var idx := int(floor(rng.randf() * reds.size()))
-        idx = clamp(idx, 0, reds.size() - 1)
-        var posv = reds[idx]
-        if posv is Vector2:
-            var e1 := enemy_scene.instantiate()
-            e1.global_position = posv
-            get_parent().add_child(e1)
-            return
     var player := get_tree().get_first_node_in_group("player")
     if player == null:
         return
@@ -55,20 +48,38 @@ func _spawn_enemy() -> void:
     if map_size == Vector2.ZERO:
         return
     var tile_size: int = get_parent().get_meta("tile_size", 32)
-    var margin := float(tile_size) * 3.0
-    var min_r: float = min(map_size.x, map_size.y) * 0.2
-    var max_r: float = min(map_size.x, map_size.y) * 0.4
-    for _attempt in range(10):
-        var angle: float = rng.randf() * TAU
-        var radius: float = rng.randf_range(min_r, max_r)
-        var pos: Vector2 = player.global_position + Vector2(cos(angle), sin(angle)) * radius
-        if pos.x >= margin and pos.y >= margin and pos.x < map_size.x - margin and pos.y < map_size.y - margin:
-            var e := enemy_scene.instantiate()
-            e.global_position = pos
-            get_parent().add_child(e)
-            return
+    var margin := float(tile_size) * 2.0
+    if spawn_dirs.size() == 0:
+        _initialize_spawn_dirs()
+    var view_size: Vector2 = _get_viewport_size()
+    var radius: float = max(view_size.x, view_size.y) * 0.5 + margin
+    var dir: Vector2 = spawn_dirs[next_spawn_index]
+    next_spawn_index = (next_spawn_index + 1) % spawn_dirs.size()
+    var pos: Vector2 = player.global_position + dir * radius
+    pos.x = clamp(pos.x, margin, map_size.x - margin)
+    pos.y = clamp(pos.y, margin, map_size.y - margin)
+    var e := enemy_scene.instantiate()
+    e.global_position = pos
+    get_parent().add_child(e)
 
 func apply_spawn_rate_boost(mult: float, duration: float = 10.0) -> void:
     spawn_rate_multiplier = max(1.0, mult)
     boost_time_left = max(boost_time_left, duration)
+
+func _initialize_spawn_dirs() -> void:
+    spawn_dirs.clear()
+    for i in range(6):
+        var angle := float(i) / 6.0 * TAU
+        spawn_dirs.append(Vector2(cos(angle), sin(angle)))
+    next_spawn_index = 0
+
+func _get_viewport_size() -> Vector2:
+    var viewport := get_viewport()
+    if viewport != null:
+        var rect := viewport.get_visible_rect()
+        if rect.size != Vector2.ZERO:
+            return rect.size
+    var w := float(ProjectSettings.get_setting("display/window/size/viewport_width", 1280))
+    var h := float(ProjectSettings.get_setting("display/window/size/viewport_height", 720))
+    return Vector2(w, h)
 

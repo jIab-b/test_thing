@@ -10,3 +10,4 @@ web_map/__pycache__/
 web_map/generated/
 *.png
 __pycache__/
+assets/

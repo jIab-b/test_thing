@@ -20,6 +20,15 @@ func _ready() -> void:
     img.fill(Color(1.0, 0.2, 0.2, 1))
     var tex := ImageTexture.create_from_image(img)
     sprite.texture = tex
+    var enemy_path := ProjectSettings.globalize_path("res://../assets/enemy.png")
+    var eimg := Image.new()
+    if eimg.load(enemy_path) == OK:
+        var nw := int(max(1, eimg.get_width() / 15))
+        var nh := int(max(1, eimg.get_height() / 15))
+        eimg.resize(nw, nh)
+        var etex := ImageTexture.create_from_image(eimg)
+        if etex != null:
+            sprite.texture = etex
 
 func _physics_process(delta: float) -> void:
     if player_ref == null or not is_instance_valid(player_ref):
@@ -48,7 +57,9 @@ func _slash_attack() -> void:
     s.hit_mask = 16
     s.damage = 15.0  # Enemy slash damage
     s.from_enemy = true
-    s.global_position = global_position
-    s.setup((player_ref.global_position - global_position).normalized())
+    var dir := (player_ref.global_position - global_position).normalized()
+    var forward_offset := 36.0
+    var pos := global_position + dir * forward_offset
+    s.global_position = pos
+    s.setup(dir)
     get_parent().add_child(s)
-
